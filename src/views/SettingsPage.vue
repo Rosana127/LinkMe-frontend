@@ -271,7 +271,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { getUserInfo, updateUserInfo } from '@/api/user'
+import { getUserInfo, updateCurrentUser } from '@/api/user'
 import { fetchTagDefinitions } from '@/api/tags'
 import { parseJwtPayload, buildUpdatePayload as utilBuildUpdatePayload, extractServerMessage as utilExtractServerMessage } from '@/utils/settingsProfile'
 import * as aiApi from '@/api/ai'
@@ -427,8 +427,12 @@ function resolveUserId() {
 
 // 小函数：执行更新请求并记录调试信息
 async function doUpdate(userId, payload) {
-  if (DEBUG_MODE) debugInfo.value.request = { url: `/api/user/${userId}/info`, method: 'PUT', body: payload }
-  const res = await updateUserInfo(userId, payload)
+  // 记录调试日志，便于通过控制台或 debug 面板排查
+  console.debug('[Settings] doUpdate: payload=', payload)
+  if (DEBUG_MODE) debugInfo.value.request = { url: `/api/users/me`, method: 'PUT', body: payload }
+  // 使用 updateCurrentUser API (PUT /api/users/me)，不需要 userId
+  const res = await updateCurrentUser(payload)
+  console.debug('[Settings] doUpdate: response=', res)
   if (DEBUG_MODE) debugInfo.value.response = res
   return res
 }
@@ -613,29 +617,21 @@ async function saveProfile() {
   saveError.value = false
 
   try {
-    let userId = resolveUserId()
-    if (!userId) {
+    // 使用 updateCurrentUser API，不需要 userId
+    if (!authStore.userId) {
       saveMessage.value = '请先登录'
       saveError.value = true
       return
     }
 
     const payload = utilBuildUpdatePayload(editForm.value)
-    console.log('构建的更新 payload:', JSON.stringify(payload, null, 2))
-    console.log('editForm.value:', {
-      nickname: editForm.value.nickname,
-      bio: editForm.value.bio,
-      avatar: editForm.value.avatar ? '有头像数据（长度: ' + editForm.value.avatar.length + '）' : '无头像数据',
-      birthday: editForm.value.birthday,
-      location: editForm.value.location
-    })
-    
+    console.debug('[Settings] saveProfile: payload=', payload)
     if (Object.keys(payload).length === 0) {
       saveMessage.value = '没有可保存的更改'
       return
     }
 
-    await doUpdate(userId, payload)
+    await doUpdate(null, payload)
 
     // 更新本地 store
     if (authStore.user) {
