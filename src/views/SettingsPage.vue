@@ -123,14 +123,21 @@
       <div class="modal-content edit-modal" @click.stop>
         <div class="modal-header">
           <h3>编辑个人资料</h3>
-          <button class="modal-close" @click="closeEditModal">
+          <!-- 为只有图标的按钮添加可访问名称 -->
+          <button 
+            type="button"
+            class="modal-close" 
+            @click="closeEditModal"
+            aria-label="关闭编辑个人资料窗口"
+            title="关闭"
+          >
             <span class="iconify" data-icon="mdi:close" data-inline="false"></span>
           </button>
         </div>
         
         <div class="edit-form">
           <div class="form-field">
-            <label class="field-label">头像</label>
+            <label class="field-label" for="avatar-input">头像</label>
             <div class="avatar-upload-section">
               <div class="avatar-preview">
                 <img 
@@ -141,12 +148,15 @@
               </div>
               <div class="avatar-actions">
                 <input 
+                  id="avatar-input"
                   ref="avatarInput"
                   type="file" 
                   accept="image/*"
                   class="avatar-input"
                   @change="handleAvatarChange"
                   style="display: none"
+                  aria-label="上传头像文件"
+                  title="上传头像文件"
                 >
                 <button 
                   type="button"
@@ -171,13 +181,16 @@
           </div>
 
           <div class="form-field">
-            <label class="field-label">昵称</label>
+            <label class="field-label" for="nickname-input">昵称</label>
             <input 
+              id="nickname-input"
               v-model="editForm.nickname" 
               type="text" 
               placeholder="输入您的名字"
               class="form-input"
               maxlength="50"
+              aria-label="输入您的名字"
+              title="名字"
             >
           </div>
 
@@ -203,20 +216,23 @@
           </div>
 
           <div class="form-field">
-            <label class="field-label">简介</label>
+            <label class="field-label" for="bio-textarea">简介</label>
             <textarea 
+              id="bio-textarea"
               v-model="editForm.bio" 
               placeholder="介绍一下自己..."
               class="form-textarea"
               rows="4"
               maxlength="200"
+              aria-label="介绍一下自己"
+              title="个人简介"
             ></textarea>
             <div class="char-count">{{ editForm.bio.length }} / 200</div>
           </div>
 
           <div class="form-field">
             <label class="field-label">标签</label>
-            <div class="tags-scroll" role="listbox">
+            <div class="tags-scroll">
               <button
                 v-for="tag in availableTags"
                 :key="tag.id || tag.name"
@@ -749,6 +765,8 @@ const handleLogout = () => {
 .modal-close {
   background: none;
   border: none;
+  /* 为可点击图标按钮提供可聚焦样式和命名，满足无障碍要求 */
+  /* 注意：在模板中已通过 aria-label 提供可识别名称 */
   color: #888888;
   cursor: pointer;
   padding: 4px;

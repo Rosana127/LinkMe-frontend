@@ -5,6 +5,12 @@
   box-sizing: border-box;
 }
 
+html {
+  /* 兼容性：防止移动端浏览器自动调整字体大小 */
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
