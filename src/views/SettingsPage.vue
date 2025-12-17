@@ -288,6 +288,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getUserInfo, updateCurrentUser } from '@/api/user'
+import { fetchTagDefinitions } from '@/api/tags'
 import { parseJwtPayload, buildUpdatePayload as utilBuildUpdatePayload, extractServerMessage as utilExtractServerMessage } from '@/utils/settingsProfile'
 import * as aiApi from '@/api/ai'
 import { getCurrentTheme, setTheme, getAvailableThemes, THEMES } from '@/utils/theme'
@@ -315,6 +316,23 @@ const currentUserInfo = ref(null)
 
 // 头像预览（临时预览，还未保存）
 const avatarPreview = ref('')
+
+// 标签相关
+const availableTags = ref([])
+const selectedTagIds = ref([])
+const tagsLoading = ref(false)
+const tagsError = ref('')
+
+const DEFAULT_TAGS = [
+  { id: 1, name: '摄影爱好者' },
+  { id: 2, name: '旅行达人' },
+  { id: 3, name: '美食家' },
+  { id: 4, name: '读书人' },
+  { id: 5, name: '运动健身' },
+  { id: 6, name: '音乐爱好者' },
+  { id: 7, name: '电影迷' },
+  { id: 8, name: '游戏玩家' }
+]
 
 // 开发时显示请求/响应的调试开关
 const DEBUG_MODE = import.meta.env.DEV === true
@@ -447,6 +465,9 @@ async function openEditModal() {
   
   // 加载用户信息
   await loadUserInfo()
+  
+  // 加载标签
+  await loadTags()
 }
 
 // 关闭编辑模态框
@@ -514,21 +535,31 @@ async function loadUserInfo() {
   }
   
   try {
+    const localUser = authStore.user || {}
     const info = await getUserInfo(userId)
-    const userData = info?.data || info || authStore.user
-    
-    // 保存当前用户信息
-    currentUserInfo.value = userData
-    
-    // 填充表单
-    editForm.value.nickname = userData?.nickname || userData?.username || ''
-    editForm.value.bio = userData?.bio || ''
-    editForm.value.avatar = userData?.avatar || userData?.avatarUrl || ''
-    // 生日：直接读取后端 birthday（应为 YYYY-MM-DD）
-    editForm.value.birthday = userData?.birthday || ''
-    // 位置：region/location/city 任一即可
-    editForm.value.location = userData?.region || userData?.location || userData?.city || ''
-    avatarPreview.value = '' // 重置预览，使用已保存的头像（editForm.value.avatar 会在模板中使用）
+    const serverUser = info?.data || info || {}
+
+    currentUserInfo.value = { ...serverUser }
+
+    editForm.value.nickname = serverUser?.nickname || serverUser?.username || localUser?.nickname || ''
+    editForm.value.bio = serverUser?.bio || localUser?.bio || ''
+    editForm.value.avatar = localUser?.avatar || localUser?.avatarUrl || serverUser?.avatar || serverUser?.avatarUrl || ''
+    editForm.value.birthday = serverUser?.birthday || localUser?.birthday || ''
+    editForm.value.location = serverUser?.region || serverUser?.location || serverUser?.city || localUser?.region || localUser?.location || localUser?.city || ''
+    avatarPreview.value = localUser?.avatar ? localUser.avatar : ''
+
+    const userTagsSource = serverUser.tags || serverUser.tagIds || localUser.tags || localUser.tagIds || []
+    if (userTagsSource && Array.isArray(userTagsSource) && userTagsSource.length > 0) {
+      selectedTagIds.value = userTagsSource
+        .map(tag => {
+          if (typeof tag === 'number') return tag
+          if (typeof tag === 'object' && tag?.id) return tag.id
+          return null
+        })
+        .filter(id => id !== null)
+    } else {
+      selectedTagIds.value = []
+    }
   } catch (error) {
     console.error('加载用户信息失败:', error)
     saveMessage.value = '加载用户信息失败: ' + (error.message || '未知错误')
@@ -536,6 +567,55 @@ async function loadUserInfo() {
   }
 }
 
+
+// 加载标签列表
+async function loadTags() {
+  tagsLoading.value = true
+  tagsError.value = ''
+  
+  try {
+    const tags = await fetchTagDefinitions()
+    const normalized = Array.isArray(tags) ? tags : []
+    
+    if (normalized.length > 0) {
+      availableTags.value = normalized.map(tag => ({
+        id: tag.id || tag.tagId || tag.tag_id,
+        name: tag.name || tag.tagName || tag.tag_name || '未知标签'
+      })).filter(tag => tag.id && tag.name)
+    } else {
+      tagsError.value = '暂无可用标签，已展示默认选项'
+      availableTags.value = [...DEFAULT_TAGS]
+    }
+  } catch (error) {
+    console.error('加载标签失败:', error)
+    tagsError.value = '标签加载失败，已使用默认标签'
+    availableTags.value = [...DEFAULT_TAGS]
+  } finally {
+    tagsLoading.value = false
+  }
+}
+
+function isTagSelected(tagId) {
+  const normalizedId = typeof tagId === 'string' ? Number(tagId) : tagId
+  return selectedTagIds.value.some(id => {
+    const normalized = typeof id === 'string' ? Number(id) : id
+    return normalized === normalizedId
+  })
+}
+
+function toggleTag(tagId) {
+  const normalizedId = typeof tagId === 'string' ? Number(tagId) : tagId
+  const index = selectedTagIds.value.findIndex(id => {
+    const normalized = typeof id === 'string' ? Number(id) : id
+    return normalized === normalizedId
+  })
+  
+  if (index > -1) {
+    selectedTagIds.value.splice(index, 1)
+  } else {
+    selectedTagIds.value.push(tagId)
+  }
+}
 
 // 保存个人资料（使用拆分的小函数，降低复杂度）
 async function saveProfile() {
@@ -576,6 +656,7 @@ async function saveProfile() {
         authStore.user.avatar = editForm.value.avatar
         authStore.user.avatarUrl = editForm.value.avatar
       }
+      if (selectedTagIds.value.length > 0) authStore.user.tags = selectedTagIds.value
       localStorage.setItem('user', JSON.stringify(authStore.user))
     }
 
@@ -906,6 +987,48 @@ const handleLogout = () => {
   font-size: 12px;
   color: #888888;
   margin-top: 8px;
+}
+
+/* 标签选择样式 */
+.tags-scroll {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background-color: #2a2a2a;
+  border: 1px solid #333333;
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.tag-chip {
+  padding: 6px 12px;
+  background-color: #3a3a3a;
+  border: 1px solid #444444;
+  border-radius: 16px;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tag-chip:hover {
+  background-color: #4a4a4a;
+  border-color: #8b5cf6;
+}
+
+.tag-chip.selected {
+  background-color: #8b5cf6;
+  border-color: #8b5cf6;
+  color: #ffffff;
+}
+
+.tags-hint {
+  font-size: 12px;
+  color: #888888;
+  margin-top: 4px;
 }
 
 .save-message {
