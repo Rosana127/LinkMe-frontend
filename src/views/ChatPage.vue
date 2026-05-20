@@ -4,6 +4,7 @@
     <div class="grid grid-cols-3 gap-6 h-full">
       <!-- 聊天列表和活动通知 -->
       <div
+        v-show="!isMobile || !showChatView"
         class="col-span-1 bg-gray-900 rounded-xl shadow-sm overflow-hidden border border-gray-700 flex flex-col"
       >
         <!-- 标签页切换 -->
@@ -217,6 +218,7 @@
 
       <!-- 聊天界面 -->
       <div
+        v-show="!isMobile || showChatView"
         class="col-span-2 bg-gray-900 rounded-xl shadow-sm overflow-hidden flex flex-col border border-gray-700"
       >
         <!-- 聊天头 -->
@@ -224,6 +226,18 @@
           class="flex items-center p-4 border-b border-gray-700 justify-between"
         >
           <div class="flex items-center">
+            <!-- 移动端返回按钮 -->
+            <button
+              v-if="isMobile"
+              @click="backToList"
+              class="p-2 mr-1 rounded-full hover:bg-gray-700 transition-colors flex-shrink-0"
+            >
+              <span
+                class="iconify text-xl text-gray-400"
+                data-icon="mdi:arrow-left"
+                data-inline="false"
+              ></span>
+            </button>
             <div 
               class="relative cursor-pointer hover:opacity-80 transition-opacity" 
               @click.stop="handleChatHeaderClick"
@@ -561,6 +575,24 @@ const messagesContainer = ref(null);
 const showOptionsMenu = ref(false); // 控制下拉菜单显示
 const isFollowing = ref(false); // 当前是否已关注对方
 const isBlocking = ref(false); // 当前是否已屏蔽对方
+
+// ========== 移动端响应式 ==========
+const isMobile = ref(window.innerWidth <= 1024); // 屏幕宽度 ≤1024px（手机+平板）时为移动端 / Mobile/tablet when screen width ≤1024px
+const showChatView = ref(false); // 移动端是否显示聊天视图（而非列表视图） / Whether to show chat view on mobile (instead of list view)
+
+/** 窗口大小变化防抖处理 / Debounced window resize handler */
+let _resizeTimer = null;
+const handleResize = () => {
+  if (_resizeTimer) clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    isMobile.value = window.innerWidth <= 1024;
+  }, 100);
+};
+
+/** 移动端从聊天视图返回列表视图 */
+const backToList = () => {
+  showChatView.value = false;
+};
 
 // 检查当前聊天对象是否已喜欢
 const isLiked = computed(() => {
@@ -1237,6 +1269,8 @@ async function loadMessages(conversationId) {
 
 const selectChat = async (chatId) => {
   selectedChatId.value = chatId;
+  // 移动端：选中聊天时切换到聊天视图
+  if (isMobile.value) showChatView.value = true;
   await loadMessages(chatId);
 
   // Mark messages as read when opening a chat
@@ -2141,18 +2175,21 @@ onMounted(async () => {
 
   // 点击页面其他地方关闭下拉菜单
   document.addEventListener("click", closeOptionsMenu);
+  window.addEventListener("resize", handleResize);
 
   await loadAIStatus();
   
   // 清理事件监听器
   onUnmounted(() => {
     window.removeEventListener('like-status-changed', handleLikeStatusChange);
+    window.removeEventListener("resize", handleResize);
   });
 });
 
 // 组件卸载时移除事件监听
 onUnmounted(() => {
   document.removeEventListener("click", closeOptionsMenu);
+  window.removeEventListener("resize", handleResize);
   // 移除消息处理器（可能保持连接供其他组件使用）
   closeWebSocket();
 });
@@ -2192,5 +2229,117 @@ onUnmounted(() => {
   color: #aaa;
   text-align: center;
   margin: 24px 0;
+}
+
+/* 移动端/平板端响应式样式（≤1024px 覆盖手机+平板） */
+/* Mobile/tablet responsive styles (≤1024px covers phone+tablet) */
+@media (max-width: 1024px) {
+  /* 调整容器高度，减去顶部padding(~10px)、底部padding(~10px)和底部导航栏(~60px) */
+  /* Adjust container height to account for top padding, bottom padding and bottom nav bar */
+  .chat-page-container {
+    height: calc(100vh - 80px);
+    min-height: 400px;
+  }
+
+  /* 单列网格布局，禁止溢出 */
+  /* Single-column grid layout, prevent overflow */
+  .chat-page-container .grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* 两个面板都占满单列 */
+  /* Both panels fill the single column */
+  .chat-page-container .col-span-1,
+  .chat-page-container .col-span-2 {
+    grid-column: span 1;
+    border-radius: 0;
+    border: none;
+    height: 100%;
+  }
+
+  /* 返回按钮增大触摸区域（≥40px） */
+  /* Increase back button touch area (≥40px) */
+  .chat-page-container button.p-2.mr-1 {
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 标签切换按钮增大触摸区域 */
+  /* Increase tab switch button touch area */
+  .chat-page-container button.flex-1.py-3 {
+    min-height: 48px;
+    font-size: 15px;
+  }
+
+  /* 聊天列表项增大触摸区域（≥48px） */
+  /* Increase chat list item touch area (≥48px) */
+  .chat-page-container .message-list > div,
+  .chat-page-container .notification-list > div {
+    min-height: 56px;
+    padding: 12px 12px !important;
+  }
+
+  /* 消息区域优化移动端惯性滚动 */
+  /* Optimize mobile momentum scrolling for message area */
+  .chat-page-container .flex-1.overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 消息气泡最大宽度适配小屏 */
+  /* Adapt message bubble max-width for small screens */
+  .chat-page-container .chat-bubble.max-w-md {
+    max-width: 75vw;
+  }
+
+  /* 输入框区域固定在底部 */
+  /* Fix input area to bottom */
+  .chat-page-container [class*="p-4 border-t"] {
+    position: sticky;
+    bottom: 0;
+    background-color: #1f2937;
+    z-index: 5;
+  }
+
+  /* 输入框字体大小≥16px防止iOS自动缩放 */
+  /* Input font size ≥16px to prevent iOS auto-zoom */
+  .chat-page-container input[type="text"] {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  /* 输入框区域操作按钮增大触摸区域 */
+  /* Increase input area action button touch area */
+  .chat-page-container .flex.items-center.bg-gray-700 > button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  /* 聊天头部右侧操作按钮增大触摸区域 */
+  /* Increase chat header right action button touch area */
+  .chat-page-container .flex.space-x-4 > button,
+  .chat-page-container .flex.space-x-4 > div > button {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  /* 下拉菜单适配移动端 */
+  /* Adapt dropdown menu for mobile */
+  .chat-page-container .absolute.right-0.mt-2 {
+    right: -8px;
+    width: 200px;
+  }
+
+  /* AI建议气泡适配小屏 */
+  /* Adapt AI suggestion bubble for small screens */
+  .chat-page-container .ai-suggestion-bubble {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
 }
 </style>

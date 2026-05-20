@@ -1106,4 +1106,112 @@ onMounted(async () => {
 .btn-confirm:hover {
   background-color: #7c3aed;
 }
+
+/* 移动端/平板端响应式样式（≤1024px） */
+/* Mobile/tablet responsive styles (≤1024px) */
+@media (max-width: 1024px) {
+  .home-page {
+    padding: 0 10px 80px; /* 减小左右内边距，底部为导航栏留空间 / Reduce side padding, bottom for bottom nav */
+  }
+
+  .page-title {
+    font-size: 24px;
+    margin-bottom: 16px;
+    padding-left: 4px;
+  }
+
+  /* 个人信息卡片垂直布局 / Vertical layout for profile card */
+  .profile-card {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .profile-avatar {
+    width: 72px;
+    height: 72px;
+  }
+
+  .profile-name {
+    font-size: 20px;
+  }
+
+  .profile-handle {
+    font-size: 14px;
+  }
+
+  .profile-bio {
+    font-size: 13px;
+  }
+
+  .profile-tags {
+    justify-content: center;
+  }
+
+  .edit-profile-btn {
+    width: 100%;
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  .profile-stats {
+    gap: 24px;
+    justify-content: space-around;
+    padding-top: 14px;
+  }
+
+  .stat-number {
+    font-size: 18px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+  }
+
+  /* 标签切换按钮适配 / Tab buttons adaptation */
+  .tab-button {
+    padding: 10px 12px;
+    font-size: 14px;
+    gap: 4px;
+  }
+
+  .tab-button .iconify {
+    font-size: 16px;
+  }
+
+  /* 帖子网格：平板双列、手机可双列 / Post grid: 2 columns for tablet, 2 for phone */
+  .posts-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+  }
+}
+
+/* 小屏手机进一步优化（≤480px） */
+/* Further optimization for small phones (≤480px) */
+@media (max-width: 480px) {
+  .posts-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 3px;
+  }
+
+  .tabs {
+    gap: 2px;
+  }
+
+  .tab-button {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .profile-stats {
+    gap: 16px;
+  }
+}
 </style>
