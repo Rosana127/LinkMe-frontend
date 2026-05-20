@@ -9,6 +9,11 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isAuthenticated: (state) => !!state.token,
+    isAdmin: (state) => {
+      const role = state.user?.role
+      return role === 'admin' || role === 'moderator'
+    },
+    loginMode: (state) => localStorage.getItem('loginMode') || 'user',
     // Try multiple possible id field names to be tolerant to backend differences
     userId: (state) => {
       const u = state.user
@@ -23,18 +28,20 @@ export const useAuthStore = defineStore('auth', {
      * @param {String} loginName 登录名
      * @param {String} password 密码
      */
-    async login(loginName, password) {
+    async login(loginName, password, loginType = 'user') {
       try {
-        const response = await loginApi(loginName, password)
-        // 后端返回格式: { user: {...}, token: "..." }
+        const response = await loginApi(loginName, password, loginType)
+        // 后端返回格式: { user: {...}, token: "...", loginType }
         this.token = response.token
         this.user = response.user
+        const mode = response.loginType || loginType
         
         // 保存到localStorage
         localStorage.setItem('token', this.token)
         localStorage.setItem('user', JSON.stringify(this.user))
+        localStorage.setItem('loginMode', mode)
         
-        return { success: true }
+        return { success: true, loginType: mode }
       } catch (error) {
         return { 
           success: false, 
@@ -67,6 +74,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      localStorage.removeItem('loginMode')
     }
   }
 })

@@ -1846,8 +1846,13 @@ const initWebSocket = () => {
   // 增加连接ID用于追踪
   const connectionId = ++wsState.connectionId;
   
-  // WebSocket服务器地址
-  const wsUrl = `ws://localhost:8080/ws/chat?token=${token}`;
+  // WebSocket服务器地址：
+  // - 开发环境：仍可通过 Vite 代理 /api 访问后端，但 WebSocket 不走 axios，需要使用当前页面域名
+  // - 生产环境：通常通过 Nginx 同域反代到后端（/ws/chat -> 8080），因此这里用相对到当前域名的地址
+  // - 若站点是 https，则必须用 wss
+  const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const wsHost = window.location.host; // e.g. 1.2.3.4 或 example.com
+  const wsUrl = `${wsProtocol}//${wsHost}/ws/chat?token=${encodeURIComponent(token)}`;
   console.log(`[连接#${connectionId}] 正在建立WebSocket连接...`);
 
   try {

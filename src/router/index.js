@@ -11,6 +11,7 @@ import RegisterPage from '../views/RegisterPage.vue'
 import PostDetail from '../views/PostDetail.vue'
 import UserDetailPage from '../views/UserDetailPage.vue'
 import QuestionnairePage from '../views/QuestionnairePage.vue'
+import AdminPage from '../views/AdminPage.vue'
 
 const routes = [
   {
@@ -90,6 +91,12 @@ const routes = [
     component: UserDetailPage,
     props: true,
     meta: { requiresAuth: false }
+  },
+  {
+    path: '/admin',
+    name: 'admin',
+    component: AdminPage,
+    meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]
 
@@ -101,24 +108,49 @@ const router = createRouter({
 // 路由守卫
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
+
+  if (to.path === '/' || to.path === '/discover') {
+    if (authStore.isAuthenticated && authStore.loginMode === 'admin' && authStore.isAdmin) {
+      next({ name: 'admin' })
+      return
+    }
+  }
+
+  // 管理员登录后仅允许管理端与登录页，不进入发现/聊天等用户界面
+  if (
+    authStore.isAuthenticated &&
+    authStore.loginMode === 'admin' &&
+    authStore.isAdmin &&
+    to.name !== 'admin' &&
+    to.name !== 'login'
+  ) {
+    next({ name: 'admin' })
+    return
+  }
   
   // 如果路由需要认证
   if (to.meta.requiresAuth) {
-    // 检查用户是否已登录
-    if (authStore.isAuthenticated) {
-      next()
-    } else {
-      // 未登录，重定向到登录页
+    if (!authStore.isAuthenticated) {
       next({ name: 'login', query: { redirect: to.fullPath } })
+      return
     }
-  } else {
-    // 如果已登录用户访问登录/注册页，重定向到首页
-    if ((to.name === 'login' || to.name === 'register') && authStore.isAuthenticated) {
+    if (to.meta.requiresAdmin && !authStore.isAdmin) {
       next({ name: 'discover' })
-    } else {
-      next()
+      return
     }
+    next()
+    return
   }
+
+  if ((to.name === 'login' || to.name === 'register') && authStore.isAuthenticated) {
+    if (authStore.loginMode === 'admin' && authStore.isAdmin) {
+      next({ name: 'admin' })
+    } else {
+      next({ name: 'discover' })
+    }
+    return
+  }
+  next()
 })
 
 export default router

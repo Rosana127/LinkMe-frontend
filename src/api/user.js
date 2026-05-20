@@ -47,13 +47,14 @@ export function register(userData) {
  * @param {String} password 密码
  * @returns {Promise}
  */
-export function login(loginName, password) {
+export function login(loginName, password, loginType = 'user') {
   return request({
     url: "/user/login",
     method: "post",
     data: {
       loginName,
       password,
+      loginType,
     },
   });
 }

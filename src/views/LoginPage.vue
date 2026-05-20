@@ -10,7 +10,12 @@
       <div class="login-card">
       <div class="login-header">
         <h1 class="login-title">欢迎回来</h1>
-        <p class="login-subtitle">登录你的LinkMe账号</p>
+        <p class="login-subtitle">选择登录方式后进入对应系统</p>
+      </div>
+
+      <div class="login-type-tabs">
+        <button type="button" class="type-tab" :class="{ active: loginType === 'user' }" @click="loginType = 'user'">用户登录</button>
+        <button type="button" class="type-tab" :class="{ active: loginType === 'admin' }" @click="loginType = 'admin'">管理员登录</button>
       </div>
 
       <form @submit.prevent="handleLogin" class="login-form">
@@ -69,6 +74,7 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 
+const loginType = ref('user')
 const form = ref({
   loginName: '',
   password: ''
@@ -82,12 +88,16 @@ const handleLogin = async () => {
   loading.value = true
 
   try {
-    const result = await authStore.login(form.value.loginName, form.value.password)
+    const result = await authStore.login(form.value.loginName, form.value.password, loginType.value)
     
     if (result.success) {
-      // 登录成功，如果有重定向参数则跳转到原页面，否则跳转到首页
-      const redirect = route.query.redirect || '/discover'
-      router.push(redirect)
+      const mode = result.loginType || loginType.value
+      if (mode === 'admin') {
+        router.push(route.query.redirect || '/admin')
+      } else {
+        const redirect = route.query.redirect || '/discover'
+        router.push(redirect)
+      }
     } else {
       errorMessage.value = result.message || '登录失败，请重试'
     }
@@ -181,6 +191,30 @@ const goBack = () => {
 .login-subtitle {
   font-size: 14px;
   color: #666;
+}
+
+.login-type-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.type-tab {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.type-tab.active {
+  border-color: #667eea;
+  background: #eef1ff;
+  color: #4c5fd7;
+  font-weight: 600;
 }
 
 .login-form {

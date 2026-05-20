@@ -1,11 +1,16 @@
 <template>
   <div class="app-container">
-    <!-- 登录和注册页面 - 不显示推荐内容 -->
+    <!-- 登录/注册 -->
     <template v-if="isAuthPage">
       <router-view />
     </template>
+
+    <!-- 管理端：独立全屏布局，无用户侧栏 -->
+    <template v-else-if="isAdminLayout">
+      <router-view />
+    </template>
     
-    <!-- 其他页面显示完整布局 -->
+    <!-- 用户端页面 -->
     <template v-else>
       <!-- 侧边栏 -->
       <Sidebar />
@@ -67,9 +72,12 @@ import { initTheme, applyTheme } from '@/utils/theme'
 const route = useRoute()
 const authStore = useAuthStore()
 
-// 判断是否为登录/注册页面
-const isAuthPage = computed(() => {
-  return route.name === 'login' || route.name === 'register'
+const isAuthPage = computed(() => route.name === 'login' || route.name === 'register')
+
+/** 管理员审核后台：与用户端发现/聊天等完全分离 */
+const isAdminLayout = computed(() => {
+  if (route.name === 'admin') return true
+  return authStore.loginMode === 'admin' && authStore.isAdmin
 })
 
 // 控制右侧栏显示，只有home页面显示，且需要登录
@@ -107,6 +115,10 @@ watch(() => route.name, () => {
   background-color: #ffffff;
   padding-left: 280px;
   box-sizing: border-box;
+}
+
+.app-container:has(.admin-standalone-root) {
+  padding-left: 0;
 }
 
 .main-content {
