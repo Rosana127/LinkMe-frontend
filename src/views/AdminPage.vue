@@ -160,9 +160,17 @@
         <h2 class="mb-4 text-xl font-bold">内容审核日志</h2>
         <div class="space-y-2 text-sm">
           <div v-for="log in auditLogs" :key="'a-' + log.id" class="rounded-lg border border-gray-100 p-3">
-            <div class="font-medium">{{ log.action }} · 目标 {{ targetTypeText(log.targetType) }} #{{ log.targetId }}</div>
-            <div class="text-gray-500">审核员 {{ log.auditorNickname || log.auditorId }} · {{ formatTime(log.createTime) }}</div>
-            <div v-if="log.reason" class="text-gray-600">原因：{{ log.reason }}</div>
+            <div class="font-medium text-gray-900">{{ log.summary || `${log.auditResultLabel || '审核'} · ${log.targetSummary || '未知目标'}` }}</div>
+            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-gray-500">
+              <span>{{ log.auditResultLabel }}</span>
+              <span>{{ log.targetSummary }}</span>
+              <span>发布者 {{ log.userNickname || (log.userId ? `ID:${log.userId}` : '-') }}</span>
+              <span>审核员 {{ log.auditorNickname || (log.auditorId ? `ID:${log.auditorId}` : '系统自动') }}</span>
+              <span>{{ formatTime(log.createTime) }}</span>
+            </div>
+            <div v-if="log.content" class="mt-2 text-gray-600">内容：{{ log.content }}</div>
+            <div v-if="log.matchedWords" class="mt-1 text-orange-600">敏感词：{{ log.matchedWords }}</div>
+            <div v-if="log.auditRemark" class="mt-1 text-gray-600">备注：{{ log.auditRemark }}</div>
           </div>
         </div>
       </section>
@@ -172,9 +180,15 @@
         <h2 class="mb-4 text-xl font-bold">管理员操作日志</h2>
         <div class="space-y-2 text-sm">
           <div v-for="log in operationLogs" :key="'o-' + log.id" class="rounded-lg border border-gray-100 p-3">
-            <div class="font-medium">{{ log.action }} · 用户 {{ log.targetUserId || '-' }}</div>
-            <div class="text-gray-500">管理员 {{ log.adminNickname || log.adminId }} · {{ formatTime(log.createTime) }}</div>
-            <div v-if="log.reason" class="text-gray-600">原因：{{ log.reason }}</div>
+            <div class="font-medium text-gray-900">{{ log.summary || `${log.actionLabel || log.action} · ${log.targetSummary || '未知目标'}` }}</div>
+            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-gray-500">
+              <span>{{ log.actionLabel || log.action }}</span>
+              <span>{{ log.targetSummary }}</span>
+              <span>管理员 {{ log.adminNickname || (log.adminId ? `ID:${log.adminId}` : '-') }}</span>
+              <span>{{ formatTime(log.createTime) }}</span>
+            </div>
+            <div v-if="log.reason" class="mt-2 text-gray-600">原因：{{ log.reason }}</div>
+            <div v-if="log.detail" class="mt-1 text-gray-600">详情：{{ log.detail }}</div>
           </div>
         </div>
       </section>
@@ -269,10 +283,6 @@ function modClass(s) {
   if (s === 'hidden') return 'text-orange-600'
   if (s === 'deleted') return 'text-red-600'
   return 'text-green-600'
-}
-
-function targetTypeText(t) {
-  return { 0: '帖子', 1: '评论', 2: '用户' }[t] || '未知'
 }
 
 function showMessage(text) {
