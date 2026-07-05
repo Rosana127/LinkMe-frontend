@@ -19,6 +19,10 @@
             ]"
           >
             聊天
+            <span
+              v-if="unreadChatsCount > 0"
+              class="ml-2 w-2 h-2 bg-purple-500 rounded-full inline-block"
+            ></span>
           </button>
           <button
             @click="activeTab = 'notifications'"
@@ -32,10 +36,8 @@
             通知
             <span
               v-if="unreadNotificationsCount > 0"
-              class="ml-2 px-2 py-0.5 bg-purple-500 text-xs rounded-full"
-            >
-              {{ unreadNotificationsCount }}
-            </span>
+              class="ml-2 w-2 h-2 bg-purple-500 rounded-full inline-block"
+            ></span>
           </button>
         </div>
 
@@ -714,9 +716,14 @@ async function loadNotifications() {
   }
 }
 
-// 拉取未读通知数量
+// 拉取未读通知数量 / Unread notifications count
 const unreadNotificationsCount = computed(
   () => notifications.value.filter((n) => !(n.isRead || n.read)).length
+);
+
+// 拉取未读聊天会话数量 / Unread chats count
+const unreadChatsCount = computed(
+  () => chats.value.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
 );
 
 // 标记单条通知为已读
@@ -1223,6 +1230,11 @@ async function loadConversations() {
       await loadMessages(selectedChatId.value);
       // 检查关注状态
       await checkFollowStatus();
+    }
+    // 并行加载所有会话的消息，确保卡片显示最后一条消息（而非第一条）/ Load messages for all conversations in parallel to show last message on cards
+    const otherChats = chats.value.filter(c => c.id !== selectedChatId.value);
+    if (otherChats.length > 0) {
+      Promise.allSettled(otherChats.map(c => loadMessages(c.id).catch(() => {})));
     }
     // 排序：置顶的在前
     // sortChats();
@@ -1837,6 +1849,20 @@ const scrollToBottom = () => {
   if (messagesContainer.value)
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
 };
+
+// 是否有任何未读消息（聊天或通知），用于实时更新导航栏红点 / Whether there are any unread messages (chat or notification), for real-time nav badge update
+const hasAnyUnread = computed(() => {
+  const hasUnreadChats = chats.value.some(c => (c.unreadCount || 0) > 0);
+  const hasUnreadNotifs = notifications.value.some(n => !(n.isRead || n.read));
+  return hasUnreadChats || hasUnreadNotifs;
+});
+
+// 实时同步导航栏红点状态 / Real-time sync nav badge state
+watch(hasAnyUnread, (val) => {
+  if (hasUnreadMessages) {
+    hasUnreadMessages.value = val;
+  }
+});
 
 watch(selectedChatId, (newId, oldId) => {
   // 切换会话时保存/恢复草稿

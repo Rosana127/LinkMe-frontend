@@ -121,12 +121,7 @@ const showRightSidebar = computed(() => {
 const hasUnreadMessages = ref(false)
 provide('hasUnreadMessages', hasUnreadMessages)
 
-// 监听路由变化，进入消息页时清除红点 / Clear badge when entering message page
-watch(() => route.name, (newName) => {
-  if (newName === 'chat') {
-    hasUnreadMessages.value = false
-  }
-})
+// 红点状态由 ChatPage.vue 中的 watcher 实时管理，不再通过路由切换清除 / Badge state is managed in real-time by ChatPage.vue watcher, no longer cleared on route change
 
 // 路由监听和组件加载相关代码已简化
 
