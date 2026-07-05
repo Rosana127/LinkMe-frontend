@@ -106,7 +106,7 @@ const isAuthPage = computed(() => route.name === 'login' || route.name === 'regi
 /** 管理员审核后台：与用户端发现/聊天等完全分离 */
 const isAdminLayout = computed(() => {
   if (route.name === 'admin') return true
-  return authStore.loginMode === 'admin' && authStore.isAdmin
+  return authStore.isAdmin
 })
 
 // 控制右侧栏显示，只有home页面显示，且需要登录

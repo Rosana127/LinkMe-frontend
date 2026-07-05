@@ -1,20 +1,20 @@
 <template>
   <div class="home-page">
-    <h1 class="page-title">Home</h1>
+    <h1 class="page-title">个人主页</h1>
     
     <!-- 个人资料卡片 -->
     <div class="profile-card">
       <div class="profile-header">
         <img 
           :src="getAvatarUrl()" 
-          alt="Profile" 
+          alt="头像" 
           class="profile-avatar"
           @error="handleAvatarError"
         >
         <div class="profile-info">
-          <h2 class="profile-name">{{ userInfo?.nickname || userInfo?.username || 'User' }}</h2>
-          <p class="profile-handle">@{{ userInfo?.username || 'username' }}</p>
-          <p class="profile-bio">{{ userInfo?.bio || 'Love cats, travel and photography 📸' }}</p>
+          <h2 class="profile-name">{{ userInfo?.nickname || userInfo?.username || '用户' }}</h2>
+          <p class="profile-handle">@{{ userInfo?.username || 'linkme_user' }}</p>
+          <p class="profile-bio">{{ userInfo?.bio || '这个人很低调，暂时还没有填写个人简介。' }}</p>
           <div v-if="userTags.length > 0" class="profile-tags">
             <span 
               v-for="tag in userTags" 
@@ -25,7 +25,7 @@
             </span>
           </div>
         </div>
-        <button class="edit-profile-btn" @click="$router.push('/settings')">Edit Profile</button>
+        <button class="edit-profile-btn" @click="$router.push('/settings')">编辑资料</button>
       </div>
       
       <div class="profile-stats">
@@ -209,14 +209,14 @@ function getAvatarUrl() {
   }
   
   // 如果没有头像，生成文字头像
-  const name = userInfo.value?.nickname || userInfo.value?.username || 'User'
+  const name = userInfo.value?.nickname || userInfo.value?.username || '用户'
   return generateTextAvatar(name)
 }
 
 // 处理头像加载错误
 function handleAvatarError(event) {
   // 如果头像加载失败，生成文字头像
-  const name = userInfo.value?.nickname || userInfo.value?.username || 'User'
+  const name = userInfo.value?.nickname || userInfo.value?.username || '用户'
   const textAvatar = generateTextAvatar(name)
   if (textAvatar) {
     event.target.src = textAvatar

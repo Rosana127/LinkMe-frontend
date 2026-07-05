@@ -1,9 +1,9 @@
 <template>
   <div class="create-post-page">
-    <!-- Top navigation: New Post / Post Management -->
+    <!-- 顶部切换 -->
     <div class="top-tabs">
-      <button :class="['tab', { active: activeTab === 'new' }]" @click="activeTab = 'new'">New Post</button>
-      <button :class="['tab', { active: activeTab === 'manage' }]" @click="activeTab = 'manage'">Post Management</button>
+      <button :class="['tab', { active: activeTab === 'new' }]" @click="activeTab = 'new'">发布内容</button>
+      <button :class="['tab', { active: activeTab === 'manage' }]" @click="activeTab = 'manage'">内容管理</button>
     </div>
 
     <!-- New Post view (原来表单) -->
@@ -15,23 +15,23 @@
       </label>
 
       <label class="field">
-        <div class="label">Content</div>
+        <div class="label">正文</div>
         <textarea v-model="content" rows="6" placeholder="写下你的作品内容..."></textarea>
       </label>
 
       <label class="field">
-        <div class="label">Images</div>
+        <div class="label">图片</div>
         <input ref="fileInput" type="file" accept="image/*" multiple @change="onFilesChange" />
         <div class="images-preview">
           <div v-for="(img, idx) in images" :key="idx" class="thumb">
-            <img :src="img.data" alt="preview" />
+            <img :src="img.data" alt="预览图" />
             <button class="remove" @click="removeImage(idx)">✕</button>
           </div>
         </div>
       </label>
 
       <label class="field">
-        <div class="label">Tags</div>
+        <div class="label">标签</div>
         <div class="tags-scroll" role="listbox">
           <button
             v-for="tag in availableTags"
@@ -51,24 +51,24 @@
       </label>
 
       <label class="field">
-        <div class="label">Visibility</div>
+        <div class="label">可见范围</div>
         <select v-model="visibility">
-          <option value="public">Public</option>
-          <option value="friends">Friends</option>
-          <option value="draft">Draft</option>
+          <option value="public">公开</option>
+          <option value="friends">仅好友可见</option>
+          <option value="draft">草稿</option>
         </select>
       </label>
 
       <div class="actions">
-        <button class="publish" @click="publish">Publish</button>
-        <button class="draft" @click="saveDraft">Save Draft</button>
-        <button class="cancel" @click="clearForm">Clear</button>
+        <button class="publish" @click="publish">立即发布</button>
+        <button class="draft" @click="saveDraft">保存草稿</button>
+        <button class="cancel" @click="clearForm">清空内容</button>
       </div>
 
       <div v-if="message" class="message">{{ message }}</div>
     </div>
 
-    <!-- Post Management view -->
+    <!-- 内容管理 -->
     <div v-if="activeTab === 'manage'" class="manage-card">
       <div class="manage-tabs">
         <button :class="['manage-tab', { active: managementTab === 'all' }]" @click="managementTab = 'all'">全部笔记 ({{ counts.all }})</button>
@@ -128,12 +128,12 @@ const content = ref('')
 const images = ref([]) // { file, data }
 const selectedTagIds = ref([])
 const DEFAULT_TAGS = [
-  { id: -1, name: 'Photography' },
-  { id: -2, name: 'Travel' },
-  { id: -3, name: 'Art' },
-  { id: -4, name: 'Design' },
-  { id: -5, name: 'Food' },
-  { id: -6, name: 'Lifestyle' }
+  { id: -1, name: '摄影' },
+  { id: -2, name: '旅行' },
+  { id: -3, name: '艺术' },
+  { id: -4, name: '设计' },
+  { id: -5, name: '美食' },
+  { id: -6, name: '生活方式' }
 ]
 const availableTags = ref([...DEFAULT_TAGS])
 const tagsLoading = ref(false)
@@ -421,7 +421,7 @@ async function publish() {
     visibility: visibility.value
   }
 
-  message.value = 'Publishing...'
+  message.value = '发布中...'
   try {
     const res = await createPost(payload)
     // 如果后端返回创建的帖子对象，添加到本地管理列表，优先使用后端返回
@@ -478,7 +478,7 @@ async function saveDraft() {
     visibility: 'draft'
   }
 
-  message.value = 'Saving draft...'
+  message.value = '草稿保存中...'
   try {
     const res = await createPost(payload)
     const draftPost = res && res.id ? res : {
@@ -575,9 +575,9 @@ async function removePost(id) {
  */
 function coverFor(p) {
   try {
-    if (!p) return 'https://via.placeholder.com/400x240?text=No+Image'
+    if (!p) return 'https://via.placeholder.com/400x240?text=%E6%9A%82%E6%97%A0%E5%9B%BE%E7%89%87'
     const imgs = p.images || []
-    if (imgs.length === 0) return 'https://via.placeholder.com/400x240?text=No+Image'
+    if (imgs.length === 0) return 'https://via.placeholder.com/400x240?text=%E6%9A%82%E6%97%A0%E5%9B%BE%E7%89%87'
     const first = imgs[0]
     // 支持多种形态：字符串、{url}, {data}, {path}, {thumb}, {imageUrl}
     if (typeof first === 'string') return first
@@ -587,9 +587,9 @@ function coverFor(p) {
     if (first.thumb) return first.thumb
     if (first.imageUrl) return first.imageUrl
     // last resort: stringify object to data URL? just show placeholder
-    return 'https://via.placeholder.com/400x240?text=No+Image'
+    return 'https://via.placeholder.com/400x240?text=%E6%9A%82%E6%97%A0%E5%9B%BE%E7%89%87'
   } catch (e) {
-    return 'https://via.placeholder.com/400x240?text=No+Image'
+    return 'https://via.placeholder.com/400x240?text=%E6%9A%82%E6%97%A0%E5%9B%BE%E7%89%87'
   }
 }
 </script>
