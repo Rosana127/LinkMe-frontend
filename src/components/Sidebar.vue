@@ -52,7 +52,8 @@
         :class="['nav-link', { active: $route.name === 'chat' }]"
       >
         <span class="iconify" data-icon="mdi:message-outline" data-inline="false"></span>
-        <span>聊天</span>
+        <span>消息</span>
+        <span v-if="hasUnreadMessages" class="sidebar-unread-dot"></span>
       </button>
       <button 
         @click="navigateTo('home')" 
@@ -88,7 +89,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getAvatarUrl, handleAvatarError } from '@/utils/avatar'
@@ -97,6 +98,9 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+
+// 消息未读红点 / Message unread badge
+const hasUnreadMessages = inject('hasUnreadMessages', ref(false))
 const userNickname = computed(() => authStore.user?.nickname || 'User')
 const userUsername = computed(() => authStore.user?.username || 'username')
 
@@ -234,8 +238,17 @@ const handleLogout = () => {
 
 .nav-link .iconify {
   font-size: 20px;
-  width: 20px;
-  height: 20px;
+  flex-shrink: 0;
+}
+
+/* 侧边栏未读消息红点 / Sidebar unread dot badge */
+.sidebar-unread-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .login-link-btn {

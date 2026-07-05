@@ -266,16 +266,15 @@
             </div>
           </div>
           <div class="flex space-x-4 items-center">
-            <!-- AI 开关 -->
+            <!-- AI 开关：始终显示，全局关闭时点击可开启 / AI toggle: always visible, click to enable when globally off -->
             <button
-              v-if="aiEnabled" 
-              @click="toggleCurrentChatAi"
+              @click="handleAiButtonClick"
               class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors mr-2 flex items-center gap-1"
-              :class="isCurrentChatAiEnabled ? 'bg-purple-600 text-white hover:bg-purple-700' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'"
-              title="切换当前会话AI助手"
+              :class="aiEnabled ? (isCurrentChatAiEnabled ? 'bg-purple-600 text-white hover:bg-purple-700' : 'bg-gray-800 text-gray-400 hover:bg-gray-700') : 'bg-gray-800 text-gray-500 hover:bg-gray-700'"
+              title="切换AI助手"
             >
               <span class="iconify" data-icon="mdi:robot" data-inline="false"></span>
-              <span>{{ isCurrentChatAiEnabled ? 'AI开启' : 'AI关闭' }}</span>
+              <span>{{ aiEnabled ? (isCurrentChatAiEnabled ? 'AI开启' : 'AI关闭') : 'AI已关闭' }}</span>
             </button>
             <button
               class="p-2 rounded-full hover:bg-gray-800 transition-colors"
@@ -535,7 +534,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, inject } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import * as chatApi from "@/api/chat";
@@ -566,6 +565,9 @@ if (import.meta.hot) {
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+
+// 消息未读红点提示 / Message unread badge
+const hasUnreadMessages = inject('hasUnreadMessages', null);
 const searchQuery = ref("");
 const selectedChatId = ref(null);
 const newMessage = ref("");
@@ -901,7 +903,7 @@ function formatTime(ts) {
 }
 
 // AI 建议
-const aiEnabled = ref(true); // 全局 AI 开关（后端控制）
+const aiEnabled = ref(false); // 全局 AI 开关（默认关闭，用户可手动开启）/ AI toggle (default off, user can manually enable)
 const chatAiSettings = ref({}); // 本地 AI 开关设置（用户控制），key: chatId, value: boolean
 
 // 加载本地 AI 设置
@@ -926,24 +928,41 @@ const isCurrentChatAiEnabled = computed(() => {
   if (!aiEnabled.value) return false; // 全局关闭则全部关闭
   if (!selectedChatId.value) return false;
   
-  // 默认为开启 (undefined or true)
-  return chatAiSettings.value[selectedChatId.value] !== false;
+  // 默认为关闭，只有显式设置为 true 才开启 / Default off, only on when explicitly set to true
+  return chatAiSettings.value[selectedChatId.value] === true;
 });
 
-// 切换当前会话 AI 状态
+// 切换当前会话 AI 状态 / Toggle current chat AI status
 const toggleCurrentChatAi = () => {
   if (!selectedChatId.value) return;
   const currentStatus = chatAiSettings.value[selectedChatId.value] !== false;
   chatAiSettings.value[selectedChatId.value] = !currentStatus;
   saveChatAiSettings();
   
-  // 如果打开了，尝试获取一次建议
+  // 如果打开了，尝试获取一次建议 / If enabled, try to get AI suggestion
   if (!currentStatus) {
      getAIAnalysis();
   } else {
-     // 关闭时清空建议
+     // 关闭时清空建议 / Clear suggestion when disabled
      aiSuggestion.value = "AI助手已关闭";
      aiTip.value = "AI助手已关闭";
+  }
+};
+
+// 处理 AI 按钮点击：全局关闭时开启，全局开启时切换当前会话 / Handle AI button click: enable globally if off, toggle per-chat if on
+const handleAiButtonClick = () => {
+  if (!aiEnabled.value) {
+    // 全局 AI 关闭，点击开启 / Global AI is off, click to enable globally
+    aiEnabled.value = true;
+    // 同时开启当前会话的 AI / Also enable AI for current chat
+    if (selectedChatId.value) {
+      chatAiSettings.value[selectedChatId.value] = true;
+      saveChatAiSettings();
+      getAIAnalysis();
+    }
+  } else {
+    // 全局 AI 已开启，切换当前会话 AI / Global AI is on, toggle current chat AI
+    toggleCurrentChatAi();
   }
 };
 
@@ -963,7 +982,7 @@ const loadAIStatus = async () => {
       aiTip.value = "AI助手已关闭";
     }
   } catch (e) {
-    aiEnabled.value = true;
+    aiEnabled.value = false; // 后端AI状态检查失败时默认关闭 / Default off when backend AI status check fails
   }
 };
 
@@ -2024,6 +2043,10 @@ const handleWebSocketMessage = async (message) => {
         } else {
           // 否则增加未读数
           chat.unreadCount = (chat.unreadCount || 0) + 1;
+          // 设置导航栏红点提示 / Set nav badge
+          if (hasUnreadMessages) {
+            hasUnreadMessages.value = true;
+          }
         }
       }
 
@@ -2083,9 +2106,12 @@ const handleWebSocketMessage = async (message) => {
       await loadConversations();
     }
   } else if (message.type === "notification") {
-    // 收到新通知，刷新通知列表
+    // 收到新通知，刷新通知列表并设置导航栏红点 / New notification received, refresh list and set nav badge
     console.log("🔔 收到新通知");
     await loadNotifications();
+    if (hasUnreadMessages) {
+      hasUnreadMessages.value = true;
+    }
   } else if (message.type === "connected") {
     // 连接成功确认消息，忽略
     console.log("✅ WebSocket连接确认:", message.message);
@@ -2127,6 +2153,14 @@ onMounted(async () => {
   loadChatAiSettings();
   await loadConversations();
   await loadNotifications();
+  // 检查是否有未读通知或未读消息，设置导航栏红点 / Check for unread notifications or messages, set nav badge
+  if (hasUnreadMessages) {
+    const hasUnreadNotifs = notifications.value.some(n => !(n.isRead || n.read));
+    const hasUnreadChats = chats.value.some(c => (c.unreadCount || 0) > 0);
+    if (hasUnreadNotifs || hasUnreadChats) {
+      hasUnreadMessages.value = true;
+    }
+  }
 
   // 注册当前组件的消息处理器
   currentMessageHandler = handleWebSocketMessage;
@@ -2177,7 +2211,8 @@ onMounted(async () => {
   document.addEventListener("click", closeOptionsMenu);
   window.addEventListener("resize", handleResize);
 
-  await loadAIStatus();
+  // AI 默认关闭，不再从后端加载状态覆盖前端默认值 / AI defaults off, no longer load backend status to override frontend default
+  // 用户可手动点击 AI 按钮开启 / User can manually click AI button to enable
   
   // 清理事件监听器
   onUnmounted(() => {
