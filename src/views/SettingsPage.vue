@@ -6,37 +6,37 @@
       <div class="settings-sections">
         <!-- 账号设置 -->
         <div class="settings-section">
-          <h2 class="section-title">账号</h2>
+          <h2 class="section-title">账号设置</h2>
           <div class="settings-item">
             <div class="item-info">
               <h3>个人资料</h3>
-              <p>更新您的个人资料</p>
+              <p>修改头像、昵称、生日和简介</p>
             </div>
             <button class="settings-btn" @click="openEditModal">编辑</button>
           </div>
           <div class="settings-item">
             <div class="item-info">
               <h3>隐私设置</h3>
-              <p>控制谁可以查看您的内容</p>
+              <p>控制谁可以查看你的内容</p>
             </div>
-            <button class="settings-btn">管理</button>
+            <button class="settings-btn">暂未开放</button>
           </div>
         </div>
 
         <!-- 应用设置 -->
         <div class="settings-section">
-          <h2 class="section-title">应用</h2>
+          <h2 class="section-title">应用设置</h2>
           <div class="settings-item">
             <div class="item-info">
-              <h3>通知</h3>
-              <p>管理您的通知偏好</p>
+              <h3>通知设置</h3>
+              <p>管理通知提醒方式</p>
             </div>
-            <button class="settings-btn">配置</button>
+            <button class="settings-btn">暂未开放</button>
           </div>
           <div class="settings-item">
             <div class="item-info">
-              <h3>主题</h3>
-              <p>选择您喜欢的主题</p>
+              <h3>主题外观</h3>
+              <p>选择你喜欢的主题样式</p>
             </div>
             <div class="theme-selector-wrapper">
               <button 
@@ -72,32 +72,32 @@
           </div>
         </div>
 
-        <!-- 帮助与支持 -->
+        <!-- 帮助支持 -->
         <div class="settings-section">
-          <h2 class="section-title">帮助与支持</h2>
+          <h2 class="section-title">帮助支持</h2>
           <div class="settings-item">
             <div class="item-info">
               <h3>帮助中心</h3>
-              <p>获取帮助和支持</p>
+              <p>查看常见问题与使用说明</p>
             </div>
-            <button class="settings-btn">访问</button>
+            <button class="settings-btn">查看</button>
           </div>
           <div class="settings-item">
             <div class="item-info">
               <h3>联系我们</h3>
-              <p>发送反馈或报告问题</p>
+              <p>提交反馈或报告问题</p>
             </div>
             <button class="settings-btn">联系</button>
           </div>
         </div>
 
-        <!-- 危险区域 -->
+        <!-- 账号操作 -->
         <div class="settings-section danger-section">
-          <h2 class="section-title">危险区域</h2>
+          <h2 class="section-title">账号操作</h2>
           <div class="settings-item">
             <div class="item-info">
               <h3>退出登录</h3>
-              <p>退出您的账号</p>
+              <p>退出当前账号</p>
             </div>
             <button class="settings-btn danger-btn" @click="handleLogout">
               <span class="iconify" data-icon="mdi:logout" data-inline="false"></span>
@@ -106,19 +106,19 @@
           </div>
           <div class="settings-item">
             <div class="item-info">
-              <h3>删除账号</h3>
-              <p>永久删除您的账号和所有数据</p>
+              <h3>注销账号</h3>
+              <p>永久删除账号及相关数据</p>
             </div>
             <button class="settings-btn danger-btn">
               <span class="iconify" data-icon="mdi:delete-outline" data-inline="false"></span>
-              删除
+              暂未开放
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Profile Edit Modal -->
+    <!-- 编辑个人资料弹窗 -->
     <div v-if="showEditModal" class="modal-overlay" @click="closeEditModal">
       <div class="modal-content edit-modal" @click.stop>
         <div class="modal-header">
@@ -171,7 +171,7 @@
           </div>
 
           <div class="form-field">
-            <label class="field-label">名字</label>
+            <label class="field-label">昵称</label>
             <input 
               v-model="editForm.nickname" 
               type="text" 
@@ -192,7 +192,7 @@
           </div>
 
           <div class="form-field">
-            <label class="field-label">位置</label>
+            <label class="field-label">地区</label>
             <input
               v-model="editForm.location"
               type="text"
@@ -324,14 +324,14 @@ const DEBUG_MODE = import.meta.env.DEV === true
 const debugInfo = ref({ request: null, response: null })
 
 // AI助手开关
-const aiEnabled = ref(true)
+const aiEnabled = ref(false)
 async function loadAIStatus() {
   try {
     const res = await aiApi.getStatus()
     const data = res?.data || res
     aiEnabled.value = !!data?.enabled
   } catch (e) {
-    aiEnabled.value = true
+    aiEnabled.value = false
   }
 }
 async function toggleAI() {

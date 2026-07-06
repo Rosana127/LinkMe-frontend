@@ -1,9 +1,9 @@
 <template>
   <div class="create-post-page">
-    <!-- 顶部导航：发布新帖 / 帖子管理 -->
+    <!-- 顶部切换 -->
     <div class="top-tabs">
-      <button :class="['tab', { active: activeTab === 'new' }]" @click="activeTab = 'new'">发布新帖</button>
-      <button :class="['tab', { active: activeTab === 'manage' }]" @click="activeTab = 'manage'">帖子管理</button>
+      <button :class="['tab', { active: activeTab === 'new' }]" @click="activeTab = 'new'">发布内容</button>
+      <button :class="['tab', { active: activeTab === 'manage' }]" @click="activeTab = 'manage'">内容管理</button>
     </div>
 
     <!-- 发布新帖视图 -->
@@ -17,7 +17,7 @@
       </label>
 
       <label class="field">
-        <div class="label">内容</div>
+        <div class="label">正文</div>
         <textarea v-model="content" rows="6" placeholder="写下你的作品内容..."></textarea>
       </label>
 
@@ -55,29 +55,33 @@
               {{ tag.name }}
             </button>
           </div>
-          <div class="tags-hint">点击选择标签（支持多选）</div>
+          <div class="tags-hint">
+            <span v-if="tagsLoading">标签加载中...</span>
+            <span v-else-if="tagsError">{{ tagsError }}</span>
+            <span v-else>点击选择标签（支持多选）</span>
+          </div>
         </template>
       </label>
 
       <label class="field">
-        <div class="label">可见性</div>
+        <div class="label">可见范围</div>
         <select v-model="visibility">
           <option value="public">公开</option>
-          <option value="friends">好友可见</option>
+          <option value="friends">仅好友可见</option>
           <option value="draft">草稿</option>
         </select>
       </label>
 
       <div class="actions">
-        <button class="publish" @click="publish">发布</button>
+        <button class="publish" @click="publish">立即发布</button>
         <button class="draft" @click="saveDraft">保存草稿</button>
-        <button class="cancel" @click="clearForm">清空</button>
+        <button class="cancel" @click="clearForm">清空内容</button>
       </div>
 
       <div v-if="message" class="message">{{ message }}</div>
     </div>
 
-    <!-- 帖子管理视图 -->
+    <!-- 内容管理 -->
     <div v-if="activeTab === 'manage'" class="manage-card">
       <div class="manage-tabs">
         <button :class="['manage-tab', { active: managementTab === 'all' }]" @click="managementTab = 'all'">全部笔记 ({{ counts.all }})</button>
@@ -137,8 +141,17 @@ const topic = ref('')
 const content = ref('')
 const images = ref([]) // { file, data }
 const selectedTagIds = ref([])
-const availableTags = ref([])
+const DEFAULT_TAGS = [
+  { id: -1, name: '摄影' },
+  { id: -2, name: '旅行' },
+  { id: -3, name: '艺术' },
+  { id: -4, name: '设计' },
+  { id: -5, name: '美食' },
+  { id: -6, name: '生活方式' }
+]
+const availableTags = ref([...DEFAULT_TAGS])
 const tagsLoading = ref(false)
+const tagsError = ref('')
 const visibility = ref('public')
 const message = ref('')
 const fileInput = ref(null)
@@ -371,10 +384,16 @@ async function loadTags() {
       .map(normalizeTagRecord)
       .filter(Boolean)
       .filter((tag, index, arr) => arr.findIndex(t => t.id === tag.id) === index)
-    availableTags.value = normalized
+    if (normalized.length) {
+      availableTags.value = normalized
+    } else {
+      tagsError.value = '暂无可用标签，已展示默认选项'
+      availableTags.value = [...DEFAULT_TAGS]
+    }
   } catch (error) {
     console.warn('标签列表加载失败', error)
-    availableTags.value = []
+    tagsError.value = '标签加载失败，已使用默认标签'
+    availableTags.value = [...DEFAULT_TAGS]
   } finally {
     tagsLoading.value = false
   }
@@ -478,7 +497,7 @@ async function saveDraft() {
     visibility: 'draft'
   }
 
-  message.value = '保存草稿中...'
+  message.value = '草稿保存中...'
   try {
     const res = await createPost(payload)
     const draftPost = res && res.id ? res : {
@@ -575,9 +594,9 @@ async function removePost(id) {
  */
 function coverFor(p) {
   try {
-    if (!p) return 'https://via.placeholder.com/400x240?text=No+Image'
+    if (!p) return 'https://via.placeholder.com/400x240?text=%E6%9A%82%E6%97%A0%E5%9B%BE%E7%89%87'
     const imgs = p.images || []
-    if (imgs.length === 0) return 'https://via.placeholder.com/400x240?text=No+Image'
+    if (imgs.length === 0) return 'https://via.placeholder.com/400x240?text=%E6%9A%82%E6%97%A0%E5%9B%BE%E7%89%87'
     const first = imgs[0]
     // 支持多种形态：字符串、{url}, {data}, {path}, {thumb}, {imageUrl}
     if (typeof first === 'string') return first
@@ -587,9 +606,9 @@ function coverFor(p) {
     if (first.thumb) return first.thumb
     if (first.imageUrl) return first.imageUrl
     // last resort: stringify object to data URL? just show placeholder
-    return 'https://via.placeholder.com/400x240?text=No+Image'
+    return 'https://via.placeholder.com/400x240?text=%E6%9A%82%E6%97%A0%E5%9B%BE%E7%89%87'
   } catch (e) {
-    return 'https://via.placeholder.com/400x240?text=No+Image'
+    return 'https://via.placeholder.com/400x240?text=%E6%9A%82%E6%97%A0%E5%9B%BE%E7%89%87'
   }
 }
 </script>

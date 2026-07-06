@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <!-- 登录/注册 -->
+    <!-- 登录和注册页面 - 不显示推荐内容 -->
     <template v-if="isAuthPage">
       <router-view />
     </template>
@@ -71,7 +71,8 @@
         </router-link>
         <router-link to="/chat" class="bottom-nav-item" :class="{ active: $route.name === 'chat' }">
           <span class="iconify nav-icon" data-icon="mdi:message-outline" data-inline="false"></span>
-          <span class="nav-label">聊天</span>
+          <span class="nav-label">消息</span>
+          <span v-if="hasUnreadMessages" class="unread-dot"></span>
         </router-link>
         <router-link to="/home" class="bottom-nav-item" :class="{ active: $route.name === 'home' }">
           <span class="iconify nav-icon" data-icon="mdi:home-outline" data-inline="false"></span>
@@ -91,7 +92,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, watch, ref, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import Sidebar from './components/Sidebar.vue'
@@ -105,7 +106,7 @@ const isAuthPage = computed(() => route.name === 'login' || route.name === 'regi
 /** 管理员审核后台：与用户端发现/聊天等完全分离 */
 const isAdminLayout = computed(() => {
   if (route.name === 'admin') return true
-  return authStore.loginMode === 'admin' && authStore.isAdmin
+  return authStore.isAdmin
 })
 
 // 控制右侧栏显示，只有home页面显示，且需要登录
@@ -115,6 +116,12 @@ const showRightSidebar = computed(() => {
   }
   return route.name === 'home' // 只显示home页面的右侧栏
 })
+
+// 消息未读红点提示 / Message unread badge
+const hasUnreadMessages = ref(false)
+provide('hasUnreadMessages', hasUnreadMessages)
+
+// 红点状态由 ChatPage.vue 中的 watcher 实时管理，不再通过路由切换清除 / Badge state is managed in real-time by ChatPage.vue watcher, no longer cleared on route change
 
 // 路由监听和组件加载相关代码已简化
 
@@ -343,6 +350,7 @@ watch(() => route.name, () => {
   text-decoration: none;
   font-size: 11px;
   flex: 1;
+  position: relative;
   transition: color 0.2s;
 }
 
@@ -358,6 +366,20 @@ watch(() => route.name, () => {
 
 .bottom-nav-item:hover {
   color: #8b5cf6;
+}
+
+/* 未读消息红点 */
+/* Unread message dot badge */
+.unread-dot {
+  position: absolute;
+  top: 4px;
+  right: 50%;
+  transform: translateX(22px);
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
 }
 
 /* "创建帖子"按钮图标略大突出，但颜色跟随高亮逻辑 */

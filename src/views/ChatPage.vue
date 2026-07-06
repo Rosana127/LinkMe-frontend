@@ -1,4 +1,4 @@
-<template>
+﻿﻿<template>
   <div class="chat-page-container">
     <!-- 聊天列表和活动通知 -->
     <div class="grid grid-cols-3 gap-6 h-full">
@@ -813,6 +813,10 @@ function getNotificationActorName(notification) {
 // 处理通知点击事件（点击整个通知区域）
 function handleNotificationClick(notification) {
   console.log('🔔 点击通知被触发:', notification);
+
+  if (notification?.type === 'system' || notification?.relatedType === 'account_status') {
+    return;
+  }
   
   const userId = getNotificationUserId(notification)
   
@@ -902,7 +906,7 @@ function formatTime(ts) {
 }
 
 // AI 建议
-const aiEnabled = ref(true); // 全局 AI 开关（后端控制）
+const aiEnabled = ref(false); // 全局 AI 开关（后端控制）
 const chatAiSettings = ref({}); // 本地 AI 开关设置（用户控制），key: chatId, value: boolean
 
 // 加载本地 AI 设置
@@ -927,14 +931,14 @@ const isCurrentChatAiEnabled = computed(() => {
   if (!aiEnabled.value) return false; // 全局关闭则全部关闭
   if (!selectedChatId.value) return false;
   
-  // 默认为开启 (undefined or true)
-  return chatAiSettings.value[selectedChatId.value] !== false;
+  // 默认关闭，只有显式开启的会话才启用 AI
+  return chatAiSettings.value[selectedChatId.value] === true;
 });
 
 // 切换当前会话 AI 状态
 const toggleCurrentChatAi = () => {
   if (!selectedChatId.value) return;
-  const currentStatus = chatAiSettings.value[selectedChatId.value] !== false;
+  const currentStatus = chatAiSettings.value[selectedChatId.value] === true;
   chatAiSettings.value[selectedChatId.value] = !currentStatus;
   saveChatAiSettings();
   
@@ -964,7 +968,9 @@ const loadAIStatus = async () => {
       aiTip.value = "AI助手已关闭";
     }
   } catch (e) {
-    aiEnabled.value = true;
+    aiEnabled.value = false;
+    aiSuggestion.value = "AI助手暂不可用";
+    aiTip.value = "当前未连接到 AI 服务，已保持关闭。";
   }
 };
 

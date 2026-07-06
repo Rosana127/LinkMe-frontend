@@ -116,7 +116,11 @@
           <div class="hashtags">{{ post.hashtags }}</div>
         </div>
         
-        <!-- 图片：首页不显示图片，只在详情页显示 -->
+        <!-- 移动端图片预览：首页不显示图片，只在详情页显示；移动端单列布局时展示图片提升体验 -->
+        <!-- Mobile image preview: hidden on desktop, shown on mobile single-column layout for better UX -->
+        <div class="post-image-mobile" v-if="post.image">
+          <img :src="post.image" :alt="post.caption" loading="lazy" @error="e => e.target.style.display = 'none'">
+        </div>
         
         <!-- 互动按钮 -->
         <div class="post-actions">
@@ -1047,5 +1051,221 @@ function handleClickOutside(event) {
 
 .error-message {
   color: #ef4444;
+}
+
+/* 移动端图片预览：桌面端/平板端隐藏 */
+/* Mobile image preview: hidden on desktop/tablet */
+.post-image-mobile {
+  display: none;
+}
+
+/* ========== 手机端响应式样式（≤640px） ========== */
+/* Phone responsive styles (≤640px) */
+@media (max-width: 640px) {
+  /* 头部区域压缩 */
+  /* Compact header area */
+  .category-search-container {
+    padding: 10px 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .categories {
+    gap: 6px;
+    width: 100%;
+  }
+
+  .category-btn {
+    padding: 8px 14px;
+    font-size: 14px;
+    border-radius: 16px;
+    flex: 1;
+    text-align: center;
+    min-height: 40px; /* 增大触摸目标 / Larger touch target */
+  }
+
+  .search-container {
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+    font-size: 16px; /* 防止iOS自动缩放 / Prevent iOS auto-zoom */
+    padding: 10px 40px 10px 14px;
+    min-height: 42px;
+  }
+
+  .search-btn {
+    right: 12px;
+  }
+
+  /* 帖子网格 → 单列布局 */
+  /* Post grid → single column */
+  .posts-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 12px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 80px; /* 底部导航栏空间 / Space for bottom nav */
+  }
+
+  /* 帖子卡片优化 */
+  /* Post card optimization */
+  .post-card {
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid #eee;
+  }
+
+  /* 帖子头部 */
+  /* Post header */
+  .post-header {
+    margin-bottom: 10px;
+  }
+
+  .user-info {
+    gap: 10px;
+  }
+
+  .user-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .username {
+    font-size: 15px;
+  }
+
+  .user-handle {
+    font-size: 13px;
+  }
+
+  .timestamp, .location {
+    font-size: 11px;
+  }
+
+  /* 帖子内容 */
+  /* Post content */
+  .post-content {
+    margin-bottom: 10px;
+  }
+
+  .post-caption {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .hashtags {
+    font-size: 11px;
+  }
+
+  /* 移动端显示图片预览 */
+  /* Show image preview on mobile */
+  .post-image-mobile {
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  .post-image-mobile img {
+    width: 100%;
+    border-radius: 8px;
+    max-height: 240px;
+    object-fit: cover;
+  }
+
+  /* 互动按钮增大触摸区域 */
+  /* Larger touch targets for action buttons */
+  .post-actions {
+    gap: 12px;
+    justify-content: space-around;
+  }
+
+  .action-btn {
+    padding: 8px 10px;
+    gap: 6px;
+    font-size: 13px;
+    min-height: 40px; /* 最小44px触摸目标 / Min 44px touch target */
+    min-width: 44px;
+  }
+
+  .action-btn .iconify {
+    font-size: 20px;
+  }
+
+  /* 弹窗适配 */
+  /* Modal adaptation */
+  .modal-content {
+    min-width: auto;
+    max-width: 90vw;
+    padding: 20px 16px;
+    border-radius: 14px;
+  }
+
+  .modal-title {
+    font-size: 18px;
+  }
+
+  .folder-item {
+    padding: 14px 12px;
+  }
+
+  .folder-input {
+    font-size: 16px; /* 防止iOS自动缩放 / Prevent iOS auto-zoom */
+    padding: 12px;
+  }
+
+  .modal-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+
+  /* Toast提示适配 */
+  /* Toast notification adaptation */
+  .toast {
+    top: 70px;
+    right: 16px;
+    left: 16px;
+    text-align: center;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  /* 空状态/加载状态 */
+  /* Empty/loading states */
+  .loading-message,
+  .error-message,
+  .empty-message {
+    padding: 40px 16px;
+    font-size: 14px;
+    margin-top: 60px;
+  }
+}
+
+/* ========== 小屏手机进一步优化（≤380px） ========== */
+/* Small phone further optimization (≤380px) */
+@media (max-width: 380px) {
+  .category-btn {
+    padding: 6px 10px;
+    font-size: 13px;
+    min-height: 36px;
+  }
+
+  .post-card {
+    padding: 12px;
+  }
+
+  .post-actions {
+    gap: 8px;
+  }
+
+  .action-btn {
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  .action-btn .iconify {
+    font-size: 18px;
+  }
 }
 </style>

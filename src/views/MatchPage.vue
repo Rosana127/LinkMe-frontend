@@ -1130,4 +1130,230 @@ onMounted(async () => {
 .high-match-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(139, 92, 246, 0.7);
 }
+
+/* ========== 手机端响应式样式（≤640px） ========== */
+/* Phone responsive styles (≤640px) */
+@media (max-width: 640px) {
+  /* 主容器改为垂直堆叠 */
+  /* Main container → vertical stacking */
+  .match-page {
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 80px; /* 底部导航栏空间 / Space for bottom nav */
+  }
+
+  /* 主区域全宽 */
+  /* Main area full width */
+  .match-page > .flex-\[1\.2\] {
+    flex: none;
+    width: 100%;
+  }
+
+  /* 主卡片内边距缩减 */
+  /* Reduce main card padding */
+  .match-page .bg-white\/40.border.rounded-xl.p-8 {
+    padding: 16px 12px;
+  }
+
+  .match-page .bg-white\/40.border.rounded-xl.p-8.mb-6 {
+    padding: 16px 12px;
+  }
+
+  /* 标题字号缩减 */
+  /* Reduce title font size */
+  .match-page h3.text-xl {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+
+  /* 用户卡片高度缩减 */
+  /* Reduce user card height */
+  .match-card.h-96 {
+    height: 280px;
+    border-radius: 10px;
+  }
+
+  .match-card .absolute.bottom-0 {
+    padding: 12px;
+  }
+
+  .match-card .absolute.bottom-0 h2 {
+    font-size: 18px;
+    margin-bottom: 4px;
+  }
+
+  .match-card .absolute.bottom-0 p {
+    font-size: 12px;
+  }
+
+  /* 简介/兴趣 单列布局 */
+  /* Bio/interests single column */
+  .match-page .grid.grid-cols-1 {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .match-page .grid h4 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .match-page .grid p {
+    font-size: 13px;
+  }
+
+  /* 兴趣标签缩小 */
+  /* Smaller interest tags */
+  .match-page .flex.flex-wrap.gap-2 span {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+
+  /* 导航按钮增大触摸区域 */
+  /* Larger touch targets for nav buttons */
+  .nav-buttons-container {
+    margin-bottom: 12px;
+  }
+
+  .nav-buttons-container button {
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: 48px;
+  }
+
+  .nav-buttons-container button .iconify {
+    font-size: 20px;
+  }
+
+  /* 发起聊天/喜欢按钮增大触摸区域 */
+  /* Larger touch targets for chat/like buttons */
+  .match-page .space-y-4 > .flex {
+    gap: 12px;
+  }
+
+  .match-page .space-y-4 > .flex button {
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .match-page .space-y-4 > .flex button .iconify {
+    font-size: 20px;
+  }
+
+  .match-page .space-y-4 > .flex button.px-4 {
+    min-width: 80px;
+  }
+
+  /* 右侧栏全宽，移除左边距 */
+  /* Right panel full width, remove left margin */
+  .match-page > .w-96 {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* 右侧栏卡片内边距缩减 */
+  /* Reduce right panel card padding */
+  .match-page .w-96 .bg-white\/40.border.rounded-xl.p-6 {
+    padding: 16px 12px;
+  }
+
+  .match-page .w-96 h4 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .match-page .w-96 p.text-sm {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  /* 问卷按钮优化 */
+  /* Optimize questionnaire button */
+  .questionnaire-btn {
+    padding: 14px 12px;
+  }
+
+  .questionnaire-btn .iconify {
+    font-size: 24px;
+    margin-right: 8px;
+  }
+
+  .questionnaire-btn span.text-lg {
+    font-size: 16px;
+  }
+
+  /* 高匹配度推荐列表 */
+  /* High match list */
+  .high-match-scroll {
+    max-height: 300px;
+  }
+
+  .high-match-scroll .flex.items-center.gap-3 {
+    padding: 10px;
+  }
+
+  .high-match-scroll .flex.items-center.gap-3 img {
+    width: 44px;
+    height: 44px;
+  }
+
+  .high-match-scroll .flex.items-center.gap-3 .text-gray-900 {
+    font-size: 14px;
+  }
+
+  .high-match-scroll .flex.items-center.gap-3 .text-xs {
+    font-size: 11px;
+  }
+
+  /* 提示消息适配 */
+  /* Tip message adaptation */
+  .match-page .fixed.top-20 {
+    top: 60px;
+    left: 10px;
+    right: 10px;
+    transform: none;
+    text-align: center;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  /* 加载/空状态 */
+  /* Loading/empty states */
+  .match-page .text-center.py-12 {
+    padding: 32px 12px;
+  }
+
+  .match-page .text-center.py-12 p {
+    font-size: 14px;
+  }
+
+  .match-page .text-center.py-8 {
+    padding: 24px 12px;
+  }
+}
+
+/* ========== 小屏手机进一步优化（≤380px） ========== */
+/* Small phone further optimization (≤380px) */
+@media (max-width: 380px) {
+  .match-card.h-96 {
+    height: 240px;
+  }
+
+  .nav-buttons-container button {
+    padding: 10px 12px;
+    font-size: 13px;
+    min-height: 44px;
+  }
+
+  .match-page .space-y-4 > .flex button {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .match-card .absolute.bottom-0 h2 {
+    font-size: 16px;
+  }
+}
 </style>
