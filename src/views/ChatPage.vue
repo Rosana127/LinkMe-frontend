@@ -1,4 +1,4 @@
-﻿﻿<template>
+﻿<template>
   <div class="chat-page-container">
     <!-- 聊天列表和活动通知 -->
     <div class="grid grid-cols-3 gap-6 h-full">
@@ -2243,8 +2243,7 @@ onMounted(async () => {
   document.addEventListener("click", closeOptionsMenu);
   window.addEventListener("resize", handleResize);
 
-  // AI 默认关闭，不再从后端加载状态覆盖前端默认值 / AI defaults off, no longer load backend status to override frontend default
-  // 用户可手动点击 AI 按钮开启 / User can manually click AI button to enable
+  await loadAIStatus();
   
   // 清理事件监听器
   onUnmounted(() => {
