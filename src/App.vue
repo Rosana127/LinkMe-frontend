@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" :class="{ 'is-admin-layout': isAdminLayout }">
     <!-- 登录和注册页面 - 不显示推荐内容 -->
     <template v-if="isAuthPage">
       <router-view />
@@ -152,7 +152,8 @@ watch(() => route.name, () => {
   box-sizing: border-box;
 }
 
-.app-container:has(.admin-standalone-root) {
+.app-container:has(.admin-standalone-root),
+.app-container.is-admin-layout {
   padding-left: 0;
 }
 

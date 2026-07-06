@@ -1,6 +1,6 @@
 <template>
-  <div class="admin-standalone-root min-h-screen bg-gray-50 p-4 md:p-8">
-    <div class="mx-auto max-w-7xl space-y-6">
+  <div class="admin-standalone-root min-h-screen bg-gray-50 px-2 py-4 sm:px-4 md:px-6 lg:px-8">
+    <div class="w-full space-y-6">
       <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 class="text-3xl font-bold text-gray-900">LinkMe 管理后台</h1>
@@ -15,7 +15,7 @@
       <div v-if="error" class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ error }}</div>
       <div v-if="message" class="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">{{ message }}</div>
 
-      <div class="grid gap-4 md:grid-cols-3">
+      <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         <div class="rounded-2xl bg-white p-5 shadow-sm">
           <div class="text-sm text-gray-500">用户数量</div>
           <div class="mt-2 text-3xl font-bold">{{ stats.users ?? '-' }}</div>
@@ -63,11 +63,11 @@
               <tr>
                 <th class="px-3 py-2">用户</th>
                 <th class="px-3 py-2">账号</th>
-                <th class="px-3 py-2">性别</th>
-                <th class="px-3 py-2">地区</th>
-                <th class="px-3 py-2">角色</th>
+                <th class="px-3 py-2 hidden md:table-cell">性别</th>
+                <th class="px-3 py-2 hidden md:table-cell">地区</th>
+                <th class="px-3 py-2 hidden lg:table-cell">角色</th>
                 <th class="px-3 py-2">账号状态</th>
-                <th class="px-3 py-2">注册时间</th>
+                <th class="px-3 py-2 hidden lg:table-cell">注册时间</th>
                 <th class="px-3 py-2">操作</th>
               </tr>
             </thead>
@@ -86,14 +86,14 @@
                   <div>{{ user.username }}</div>
                   <div class="text-xs">{{ user.email || user.phone }}</div>
                 </td>
-                <td class="px-3 py-3">{{ genderText(user.gender) }}</td>
-                <td class="px-3 py-3">{{ user.region || '-' }}</td>
-                <td class="px-3 py-3">{{ user.role || 'customer' }}</td>
+                <td class="px-3 py-3 hidden md:table-cell">{{ genderText(user.gender) }}</td>
+                <td class="px-3 py-3 hidden md:table-cell">{{ user.region || '-' }}</td>
+                <td class="px-3 py-3 hidden lg:table-cell">{{ user.role || 'customer' }}</td>
                 <td class="px-3 py-3">
                   <span class="rounded-full px-2 py-1 text-xs font-medium" :class="statusClass(user.accountStatus)">{{ statusLabel(user.accountStatus) }}</span>
                   <div v-if="user.banUntil" class="mt-1 text-xs text-gray-400">至 {{ formatTime(user.banUntil) }}</div>
                 </td>
-                <td class="px-3 py-3 text-gray-500">{{ formatTime(user.createdAt) }}</td>
+                <td class="px-3 py-3 text-gray-500 hidden lg:table-cell">{{ formatTime(user.createdAt) }}</td>
                 <td class="px-3 py-3">
                   <div class="flex flex-wrap gap-1">
                     <select class="rounded border px-2 py-1 text-xs" @change="onPunishSelect(user.userId, $event)">
@@ -117,7 +117,7 @@
       <!-- 帖子 -->
       <section v-if="activeTab === 'posts'" class="rounded-2xl bg-white p-4 shadow-sm md:p-6">
         <h2 class="mb-4 text-xl font-bold">帖子审核</h2>
-        <div class="grid gap-4 md:grid-cols-2">
+        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <article v-for="post in posts" :key="post.postId" class="rounded-xl border p-4">
             <div class="mb-2 flex justify-between text-xs text-gray-400">
               <span>{{ post.nickname || post.username }} · ID {{ post.postId }}</span>

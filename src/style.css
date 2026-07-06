@@ -380,6 +380,90 @@ input::placeholder, textarea::placeholder {
   color: #888888;
 }
 
+/* 管理端独立布局：输入框使用浅色背景 / Admin standalone layout: light background for inputs */
+.admin-standalone-root input,
+.admin-standalone-root textarea,
+.admin-standalone-root select {
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #111827;
+}
+
+.admin-standalone-root input:focus,
+.admin-standalone-root textarea:focus,
+.admin-standalone-root select:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
+}
+
+/* 管理端表格响应式优化 / Admin table responsive optimization */
+.admin-standalone-root .overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 管理端暗色主题下的表格兼容 / Admin table dark theme compatibility */
+.app-container.theme-dark .admin-standalone-root {
+  background-color: #0f172a !important;
+}
+
+.app-container.theme-dark .admin-standalone-root .bg-white {
+  background-color: #1e293b !important;
+}
+
+.app-container.theme-dark .admin-standalone-root .bg-gray-50 {
+  background-color: #0f172a !important;
+}
+
+.app-container.theme-dark .admin-standalone-root .text-gray-900 {
+  color: #f1f5f9 !important;
+}
+
+.app-container.theme-dark .admin-standalone-root .text-gray-700 {
+  color: #cbd5e1 !important;
+}
+
+.app-container.theme-dark .admin-standalone-root .text-gray-600 {
+  color: #94a3b8 !important;
+}
+
+.app-container.theme-dark .admin-standalone-root .text-gray-500 {
+  color: #64748b !important;
+}
+
+.app-container.theme-dark .admin-standalone-root .text-gray-400 {
+  color: #475569 !important;
+}
+
+.app-container.theme-dark .admin-standalone-root .border-gray-200 {
+  border-color: #334155 !important;
+}
+
+.app-container.theme-dark .admin-standalone-root .border-gray-100 {
+  border-color: #1e293b !important;
+}
+
+.app-container.theme-dark .admin-standalone-root .divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155 !important;
+}
+
+.app-container.theme-dark .admin-standalone-root .hover\:bg-gray-100:hover {
+  background-color: #334155 !important;
+}
+
+.app-container.theme-dark .admin-standalone-root input,
+.app-container.theme-dark .admin-standalone-root textarea,
+.app-container.theme-dark .admin-standalone-root select {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.app-container.theme-dark .admin-standalone-root input::placeholder,
+.app-container.theme-dark .admin-standalone-root textarea::placeholder {
+  color: #64748b;
+}
+
 /* 按钮样式 */
 button {
   font-family: inherit;
@@ -479,7 +563,7 @@ a:hover {
 /* 响应式设计：手机和平板端（≤1024px） */
 /* Responsive design: mobile and tablet (≤1024px) */
 @media (max-width: 1024px) {
-  .app-container {
+  .app-container:not(.is-admin-layout) {
     padding-left: 0 !important;
   }
 
