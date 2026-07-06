@@ -125,6 +125,21 @@
       <!-- Toast 提示 -->
       <div v-if="showToast" class="toast">{{ toastText }}</div>
 
+      <!-- 举报菜单弹窗 -->
+      <div v-if="showReportMenu" class="report-overlay" @click="cancelReport">
+        <div class="report-menu" @click.stop>
+          <div class="report-menu-title">举报评论</div>
+          <div class="report-menu-reasons">
+            <button class="report-reason-btn" @click="confirmReport('色情低俗')">色情低俗</button>
+            <button class="report-reason-btn" @click="confirmReport('侮辱谩骂')">侮辱谩骂</button>
+            <button class="report-reason-btn" @click="confirmReport('广告营销')">广告营销</button>
+            <button class="report-reason-btn" @click="confirmReport('虚假信息')">虚假信息</button>
+            <button class="report-reason-btn" @click="confirmReport('其他')">其他</button>
+          </div>
+          <button class="report-cancel-btn" @click="cancelReport">取消</button>
+        </div>
+      </div>
+
       <!-- 关注/取消关注提示 -->
       <div v-if="showFollowToast" class="toast">{{ followToastMessage }}</div>
 
@@ -182,18 +197,43 @@
                 <div class="comment-author">{{ c.author }}</div>
                 <div class="comment-time">{{ formatTime(c.createdAt) }}</div>
               </div>
-              <button
-                v-if="c.userId === authStore.userId"
-                class="comment-delete-btn"
-                @click="handleDeleteComment(c.id)"
-                title="删除评论"
-              >
-                <span
-                  class="iconify"
-                  data-icon="mdi:delete-outline"
-                  data-inline="false"
-                ></span>
-              </button>
+              <div class="comment-actions-right">
+                <button
+                  v-if="c.userId === authStore.userId"
+                  class="comment-delete-btn"
+                  @click="handleDeleteComment(c.id)"
+                  title="删除评论"
+                >
+                  <span
+                    class="iconify"
+                    data-icon="mdi:delete-outline"
+                    data-inline="false"
+                  ></span>
+                </button>
+                <div
+                  v-if="c.userId !== authStore.userId"
+                  class="comment-more-container"
+                >
+                  <button
+                    class="comment-more-btn"
+                    @click.stop="toggleCommentMore(c.id)"
+                    title="更多"
+                  >
+                    <span
+                      class="iconify"
+                      data-icon="mdi:dots-vertical"
+                      data-inline="false"
+                    ></span>
+                  </button>
+                  <div
+                    v-if="showingCommentMore === c.id"
+                    class="comment-report-box"
+                    @click.stop
+                  >
+                    <button class="report-btn" @click.stop="confirmReport(c)">举报该评论</button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- 引用的父评论 -->
@@ -234,18 +274,43 @@
                       {{ formatTime(reply.createdAt) }}
                     </div>
                   </div>
-                  <button
-                    v-if="reply.userId === authStore.userId"
-                    class="comment-delete-btn"
-                    @click="handleDeleteComment(reply.id)"
-                    title="删除评论"
-                  >
-                    <span
-                      class="iconify"
-                      data-icon="mdi:delete-outline"
-                      data-inline="false"
-                    ></span>
-                  </button>
+                  <div class="comment-actions-right">
+                    <button
+                      v-if="reply.userId === authStore.userId"
+                      class="comment-delete-btn"
+                      @click="handleDeleteComment(reply.id)"
+                      title="删除评论"
+                    >
+                      <span
+                        class="iconify"
+                        data-icon="mdi:delete-outline"
+                        data-inline="false"
+                      ></span>
+                    </button>
+                    <div
+                      v-if="reply.userId !== authStore.userId"
+                      class="comment-more-container"
+                    >
+                      <button
+                        class="comment-more-btn"
+                        @click.stop="toggleCommentMore(reply.id)"
+                        title="更多操作"
+                      >
+                        <span
+                          class="iconify"
+                          data-icon="mdi:dots-vertical"
+                          data-inline="false"
+                        ></span>
+                      </button>
+                      <div
+                        v-if="showingCommentMore === reply.id"
+                        class="comment-report-box"
+                        @click.stop
+                      >
+                        <button class="report-btn" @click.stop="confirmReport(reply)">举报该评论</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- 引用的父评论 -->
@@ -290,18 +355,43 @@
                           {{ formatTime(nestedReply.createdAt) }}
                         </div>
                       </div>
-                      <button
-                        v-if="nestedReply.userId === authStore.userId"
-                        class="comment-delete-btn"
-                        @click="handleDeleteComment(nestedReply.id)"
-                        title="删除评论"
-                      >
-                        <span
-                          class="iconify"
-                          data-icon="mdi:delete-outline"
-                          data-inline="false"
-                        ></span>
-                      </button>
+                      <div class="comment-actions-right">
+                        <button
+                          v-if="nestedReply.userId === authStore.userId"
+                          class="comment-delete-btn"
+                          @click="handleDeleteComment(nestedReply.id)"
+                          title="删除评论"
+                        >
+                          <span
+                            class="iconify"
+                            data-icon="mdi:delete-outline"
+                            data-inline="false"
+                          ></span>
+                        </button>
+                        <div
+                          v-if="nestedReply.userId !== authStore.userId"
+                          class="comment-more-container"
+                        >
+                          <button
+                            class="comment-more-btn"
+                            @click.stop="toggleCommentMore(nestedReply.id)"
+                            title="更多操作"
+                          >
+                            <span
+                              class="iconify"
+                              data-icon="mdi:dots-vertical"
+                              data-inline="false"
+                            ></span>
+                          </button>
+                          <div
+                            v-if="showingCommentMore === nestedReply.id"
+                            class="comment-report-box"
+                            @click.stop
+                          >
+                            <button class="report-btn" @click.stop="confirmReport(nestedReply)">举报该评论</button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <div v-if="nestedReply.parentComment" class="comment-quote">
@@ -347,6 +437,7 @@ import {
   getComments,
   postComment,
   deleteComment,
+  reportComment,
   likePost,
   unlikePost,
 } from "@/api/posts";
@@ -359,6 +450,7 @@ import {
   getFavoriteFolders,
   getUserFavoritePosts,
 } from "@/api/favorites";
+import { containsSensitiveWords } from "@/utils/sensitiveWords";
 
 const route = useRoute();
 const router = useRouter();
@@ -475,6 +567,10 @@ const liked = ref(false);
 const favorited = ref(false);
 const loading = ref(false);
 const error = ref("");
+
+// 举报相关状态
+const reportedComments = ref(new Set());
+const showingCommentMore = ref(null);
 
 // 用户菜单相关状态
 const showingMenu = ref(false);
@@ -766,6 +862,12 @@ const handleClickOutside = (e) => {
   ) {
     hideUserMenu();
   }
+  if (
+    showingCommentMore.value &&
+    !e.target.closest(".comment-more-container")
+  ) {
+    showingCommentMore.value = null;
+  }
 };
 
 document.addEventListener("click", handleClickOutside);
@@ -810,6 +912,10 @@ function addComment() {
   }
 
   const content = newComment.value.trim();
+  if (containsSensitiveWords(content)) {
+    error.value = "（评论）包含敏感词，不可发表";
+    return;
+  }
   const userId = authStore.userId;
   const payload = {
     postId: id,
@@ -865,6 +971,10 @@ function submitReply() {
   if (!replyContent.value.trim() || !replyingTo.value) return;
 
   const content = replyContent.value.trim();
+  if (containsSensitiveWords(content)) {
+    error.value = "（评论）包含敏感词，不可发表";
+    return;
+  }
   const userId = authStore.userId;
   // 确保 parentId 是数字类型
   const parentId =
@@ -1022,6 +1132,41 @@ async function handleDeleteComment(commentId) {
 
 function focusCommentInput() {
   commentInput.value?.focus();
+}
+
+// 切换评论更多菜单显示
+function toggleCommentMore(commentId) {
+  if (!authStore.isAuthenticated) {
+    showToastMessage("请先登录");
+    setTimeout(() => router.push("/login"), 800);
+    return;
+  }
+
+  if (showingCommentMore.value === commentId) {
+    showingCommentMore.value = null;
+  } else {
+    showingCommentMore.value = commentId;
+  }
+}
+
+// 确认举报
+async function confirmReport(comment) {
+  showingCommentMore.value = null;
+
+  if (reportedComments.value.has(comment.id)) {
+    showToastMessage("您已举报过该评论");
+    return;
+  }
+
+  try {
+    const userId = authStore.userId;
+    await reportComment(id, comment.id, { userId });
+    reportedComments.value.add(comment.id);
+    showToastMessage("举报成功，已送入人工审查");
+  } catch (err) {
+    console.error("举报失败:", err);
+    showToastMessage("举报失败，请重试");
+  }
 }
 
 // 加载标签映射
@@ -1587,6 +1732,52 @@ onMounted(() => {
 .comment-delete-btn:hover {
   opacity: 1;
 }
+.comment-more-container {
+  position: relative;
+  display: inline-flex;
+}
+.comment-more-btn {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.comment-more-btn:hover {
+  opacity: 1;
+  color: #6b7280;
+}
+.comment-report-box {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  padding: 4px;
+}
+.report-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #ef4444;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+.report-btn:hover {
+  background-color: #fef2f2;
+}
 .comment-quote {
   background: #f9fafb;
   border-left: 3px solid #e5e7eb;
@@ -1731,5 +1922,98 @@ onMounted(() => {
 }
 .fav-btn.favorited {
   color: #10b981;
+}
+
+.comment-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.comment-more-btn {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comment-more-btn:hover {
+  opacity: 1;
+  color: #6b7280;
+}
+
+.report-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+
+.report-menu {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 280px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.report-menu-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #374151;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.report-menu-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.report-reason-btn {
+  padding: 10px 12px;
+  background: #f3f4f6;
+  border: none;
+  border-radius: 8px;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  text-align: left;
+}
+
+.report-reason-btn:hover {
+  background: #e5e7eb;
+}
+
+.report-cancel-btn {
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.report-cancel-btn:hover {
+  border-color: #d1d5db;
+  color: #374151;
 }
 </style>

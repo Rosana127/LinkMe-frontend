@@ -6,12 +6,14 @@
       <button :class="['tab', { active: activeTab === 'manage' }]" @click="activeTab = 'manage'">内容管理</button>
     </div>
 
-    <!-- New Post view (原来表单) -->
+    <!-- 发布新帖视图 -->
     <div v-if="activeTab === 'new'" class="create-card">
       <label class="field">
-        <div class="label">Topic (主题，最多 30 字)</div>
+        <div class="label-row">
+          <span class="label">主题</span>
+          <span class="meta">{{ topic.length }} / 30</span>
+        </div>
         <input v-model="topic" type="text" maxlength="30" placeholder="输入主题，不超过30字" />
-        <div class="meta">{{ topic.length }} / 30</div>
       </label>
 
       <label class="field">
@@ -19,35 +21,46 @@
         <textarea v-model="content" rows="6" placeholder="写下你的作品内容..."></textarea>
       </label>
 
-      <label class="field">
+      <div class="field">
         <div class="label">图片</div>
-        <input ref="fileInput" type="file" accept="image/*" multiple @change="onFilesChange" />
-        <div class="images-preview">
+        <div class="images-row">
           <div v-for="(img, idx) in images" :key="idx" class="thumb">
-            <img :src="img.data" alt="预览图" />
-            <button class="remove" @click="removeImage(idx)">✕</button>
+            <img :src="img.data" alt="预览" />
+            <button type="button" class="remove" @click="removeImage(idx)">✕</button>
           </div>
+          <button type="button" class="file-pick-btn" @click="fileInput?.click()">选择图片</button>
+          <input
+            ref="fileInput"
+            type="file"
+            class="file-input-hidden"
+            accept="image/*"
+            multiple
+            @change="onFilesChange"
+          />
         </div>
-      </label>
+      </div>
 
-      <label class="field">
+      <label v-if="tagsLoading || availableTags.length" class="field">
         <div class="label">标签</div>
-        <div class="tags-scroll" role="listbox">
-          <button
-            v-for="tag in availableTags"
-            :key="tag.id || tag.name"
-            type="button"
-            :class="['tag-chip', { selected: selectedTagIds.includes(tag.id) }]"
-            @click="toggleTag(tag.id)"
-          >
-            {{ tag.name }}
-          </button>
-        </div>
-        <div class="tags-hint">
-          <span v-if="tagsLoading">标签加载中...</span>
-          <span v-else-if="tagsError">{{ tagsError }}</span>
-          <span v-else>点击选择标签（支持多选）</span>
-        </div>
+        <div v-if="tagsLoading" class="tags-hint">标签加载中...</div>
+        <template v-else>
+          <div class="tags-scroll" role="listbox">
+            <button
+              v-for="tag in availableTags"
+              :key="tag.id || tag.name"
+              type="button"
+              :class="['tag-chip', { selected: selectedTagIds.includes(tag.id) }]"
+              @click="toggleTag(tag.id)"
+            >
+              {{ tag.name }}
+            </button>
+          </div>
+          <div class="tags-hint">
+            <span v-if="tagsLoading">标签加载中...</span>
+            <span v-else-if="tagsError">{{ tagsError }}</span>
+            <span v-else>点击选择标签（支持多选）</span>
+          </div>
+        </template>
       </label>
 
       <label class="field">
@@ -116,6 +129,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { createPost, getUserPosts, deletePost, getPost } from '@/api/posts'
 import { fetchTagDefinitions } from '@/api/tags'
+import { containsSensitiveWords } from '@/utils/sensitiveWords'
 
 const router = useRouter()
 
@@ -363,7 +377,7 @@ function serializeImagesForPayload() {
 
 async function loadTags() {
   tagsLoading.value = true
-  tagsError.value = ''
+  selectedTagIds.value = []
   try {
     const list = await fetchTagDefinitions({ tagType: 'post' })
     const normalized = list
@@ -405,6 +419,11 @@ async function publish() {
   }
   if (!content.value.trim() && images.value.length === 0) {
     message.value = '请填写正文或上传图片'
+    return
+  }
+
+  if (containsSensitiveWords(content.value)) {
+    message.value = '（帖子）包含敏感词，不可发表'
     return
   }
 
@@ -598,36 +617,44 @@ function coverFor(p) {
 .create-post-page {
   max-width: 760px;
   margin: 0 auto;
+  background-color: #ffffff;
+  color: #1f2937;
+  padding: 20px 24px 32px;
+  min-height: 100%;
+  border-radius: 16px;
 }
 
-.page-title {
-  font-size: 28px;
-  color: #ffffff;
-  margin-bottom: 20px;
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .create-card {
-  background-color: #1a1a1a;
-  padding: 20px;
-  border-radius: 12px;
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
+  border: none;
+  box-shadow: none;
 }
 
 .top-tabs {
   display: flex;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .tab {
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: 999px;
-  background: #121212;
-  color: #ccc;
-  border: 1px solid #2a2a2a;
+  background: #f5f6f8;
+  color: #6b7280;
+  border: 1px solid #e2e4e8;
   cursor: pointer;
+  font-size: 14px;
 }
 
 .tab.active {
@@ -637,56 +664,66 @@ function coverFor(p) {
 }
 
 .manage-card {
-  background: #111;
-  padding: 12px;
-  border-radius: 12px;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
 }
 
 .manage-tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .manage-tab {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #0f0f0f;
-  color: #ccc;
-  border: 1px solid #222;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.manage-tab:hover {
+  color: #374151;
 }
 
 .manage-tab.active {
-  background: #8b5cf6;
-  color: #fff;
-  border-color: #8b5cf6;
+  color: #8b5cf6;
+  border-bottom-color: #8b5cf6;
 }
 
-.manage-toolbar { display:flex; justify-content:space-between; align-items:center; padding:8px 0; margin-bottom:8px; background:transparent }
+.manage-toolbar { display:flex; justify-content:space-between; align-items:center; padding:8px 0; margin-bottom:8px; background:#ffffff; color: #6b7280; font-size: 13px; }
 .manage-grid-wrapper { max-height: 60vh; overflow:auto; padding-right:6px; }
 .manage-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-.post-card { background:#0b0b0b; border-radius:10px; overflow:hidden; display:flex; flex-direction:column; }
+.post-card { background:#f5f6f8; border-radius:10px; overflow:hidden; display:flex; flex-direction:column; border:1px solid #e2e4e8 }
+.card-actions button { background:#e8eaed; color:#374151; border:1px solid #d4d8de; padding:6px 8px; border-radius:6px; cursor:pointer }
 .card-image { width:100%; aspect-ratio: 16/10; overflow:hidden; }
 .card-image img { width:100%; height:100%; object-fit:cover; display:block }
 .card-body { padding:10px; }
-.card-title { color:#fff; font-weight:600; font-size:16px }
-.card-footer { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-top:1px solid #1b1b1b }
-.card-actions button { background:#222; color:#fff; border:none; padding:6px 8px; border-radius:6px; cursor:pointer }
-.card-actions .danger { background:#4a1a1a }
+.card-title { color:#1f2937; font-weight:600; font-size:16px }
+.card-footer { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-top:1px solid #e5e7eb }
+.card-actions .danger { background:#fee2e2; color:#dc2626; border-color:#fecaca }
 .status { color:#8b5cf6; font-weight:600 }
 
 /* sticky headers: top-tabs and manage-tabs/toolbar stick to top of the page area */
 .top-tabs, .manage-tabs, .manage-toolbar {
   position: sticky;
-  top: 0; /* will stack; adjust as needed */
+  top: 0;
   z-index: 20;
 }
 
-/* give slight background so sticky area covers content under it */
-.top-tabs { background: linear-gradient(180deg, rgba(10,10,10,0.95), rgba(10,10,10,0.9)); padding-top:6px; padding-bottom:6px }
-.manage-tabs { background: rgba(10,10,10,0.95); padding:6px 0 }
-.manage-toolbar { background: rgba(10,10,10,0.92); padding:6px 0 }
+.top-tabs { background: #ffffff; padding-top:6px; padding-bottom:6px }
+.manage-tabs { background: #ffffff; padding:6px 0 }
 
 
 .field {
@@ -696,22 +733,77 @@ function coverFor(p) {
 }
 
 .label {
-  color: #888888;
+  color: #374151;
   font-size: 14px;
+  font-weight: 500;
 }
 
-input[type="text"], textarea, select {
-  background-color: #0f0f0f;
-  border: 1px solid #2a2a2a;
-  color: #ffffff;
-  padding: 10px;
-  border-radius: 8px;
+.create-post-page input[type="text"],
+.create-post-page textarea,
+.create-post-page select {
+  background-color: #e8eaed !important;
+  border: 1px solid #d4d8de !important;
+  color: #1f2937 !important;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  transition: border-color 0.2s, background-color 0.2s;
 }
 
-.images-preview {
+.create-post-page input[type="text"]:focus,
+.create-post-page textarea:focus,
+.create-post-page select:focus {
+  outline: none;
+  border-color: #8b5cf6 !important;
+  background-color: #eceef1 !important;
+}
+
+.create-post-page input[type="text"]::placeholder,
+.create-post-page textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+.create-post-page .meta {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.images-row {
   display: flex;
-  gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-input-hidden {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.file-pick-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  height: 120px;
+  padding: 12px 16px;
+  background: #e8eaed;
+  color: #374151;
+  border: 1px dashed #c5cad1;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+}
+
+.file-pick-btn:hover {
+  background: #dfe2e6;
+  border-color: #8b5cf6;
+  color: #8b5cf6;
 }
 
 .thumb {
@@ -720,7 +812,8 @@ input[type="text"], textarea, select {
   height: 120px;
   border-radius: 8px;
   overflow: hidden;
-  background: #0b0b0b;
+  background: #e8eaed;
+  border: 1px solid #d4d8de;
 }
 
 .thumb img {
@@ -733,25 +826,31 @@ input[type="text"], textarea, select {
   position: absolute;
   top: 6px;
   right: 6px;
-  background: rgba(0,0,0,0.6);
-  color: #fff;
+  background: rgba(255,255,255,0.9);
+  color: #6b7280;
   border: none;
   border-radius: 12px;
   width: 24px;
   height: 24px;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.thumb .remove:hover {
+  background: #ef4444;
+  color: #fff;
 }
 
 .tags-scroll {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 10px;
+  padding: 12px;
   max-height: 96px;
   overflow-y: auto;
-  border: 1px solid #2a2a2a;
+  border: 1px solid #d4d8de;
   border-radius: 12px;
-  background: #0c0c0c;
+  background: #e8eaed;
 }
 
 .tags-scroll::-webkit-scrollbar {
@@ -759,23 +858,23 @@ input[type="text"], textarea, select {
 }
 
 .tags-scroll::-webkit-scrollbar-thumb {
-  background: #2f2f2f;
+  background: #d1d5db;
   border-radius: 6px;
 }
 
 .tag-chip {
   padding: 8px 14px;
   border-radius: 999px;
-  background: #151515;
-  color: #e5e5e5;
-  border: 1px solid #2a2a2a;
+  background: #ffffff;
+  color: #4b5563;
+  border: 1px solid #d1d5db;
   cursor: pointer;
   transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .tag-chip:hover {
   border-color: #8b5cf6;
-  color: #fff;
+  color: #8b5cf6;
 }
 
 .tag-chip.selected {
@@ -787,7 +886,7 @@ input[type="text"], textarea, select {
 .tags-hint {
   margin-top: 6px;
   font-size: 12px;
-  color: #a1a1aa;
+  color: #9ca3af;
 }
 
 .actions {
@@ -799,31 +898,48 @@ input[type="text"], textarea, select {
   background: #8b5cf6;
   color: #fff;
   border: none;
-  padding: 10px 16px;
+  padding: 12px 20px;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.publish:hover {
+  background: #7c3aed;
 }
 
 .draft {
-  background: #444;
-  color: #fff;
-  border: none;
-  padding: 10px 12px;
+  background: #e8eaed;
+  color: #4b5563;
+  border: 1px solid #d4d8de;
+  padding: 12px 16px;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 14px;
+}
+
+.draft:hover {
+  background: #dfe2e6;
 }
 
 .cancel {
-  background: #222;
-  color: #fff;
-  border: 1px solid #333;
-  padding: 10px 16px;
+  background: #ffffff;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  padding: 12px 16px;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 14px;
+}
+
+.cancel:hover {
+  background: #f9fafb;
 }
 
 .message {
   margin-top: 6px;
   color: #8b5cf6;
+  font-size: 14px;
 }
 </style>

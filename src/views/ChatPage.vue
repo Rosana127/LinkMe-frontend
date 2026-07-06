@@ -1,4 +1,4 @@
-﻿<template>
+﻿﻿<template>
   <div class="chat-page-container">
     <!-- 聊天列表和活动通知 -->
     <div class="grid grid-cols-3 gap-6 h-full">
@@ -548,6 +548,7 @@ import * as chatApi from "@/api/chat";
 import * as userApi from "@/api/user";
 import * as aiApi from "@/api/ai";
 import { sendLikeNotification, cancelLikeNotification } from '@/api/likes';
+import { containsSensitiveWords } from '@/utils/sensitiveWords';
 
 // ========== 模块级 WebSocket 单例管理 ==========
 // 将 WebSocket 放在模块级别，避免 HMR 时创建多个实例
@@ -1587,6 +1588,12 @@ const checkFollowStatus = async () => {
 const sendMessage = async () => {
   if (!newMessage.value.trim() || !selectedChat.value) return;
   const content = newMessage.value.trim();
+  
+  if (containsSensitiveWords(content)) {
+    alert("（消息）包含敏感词，不可发表");
+    return;
+  }
+  
   const receiverId = selectedChat.value.otherId; // 对方用户ID
   const conversationId = selectedChat.value.id;
   const payload = {
