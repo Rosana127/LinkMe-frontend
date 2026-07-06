@@ -19,6 +19,12 @@
             ]"
           >
             聊天
+            <span
+              v-if="unreadChatsCount > 0"
+              class="ml-2 px-2 py-0.5 bg-purple-500 text-xs rounded-full"
+            >
+              {{ unreadChatsCount }}
+          </span>
           </button>
           <button
             @click="activeTab = 'notifications'"
@@ -535,7 +541,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, inject } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import * as chatApi from "@/api/chat";
@@ -712,10 +718,30 @@ async function loadNotifications() {
   }
 }
 
-// 拉取未读通知数量
+// 拉取未读通知数量 / Unread notifications count
 const unreadNotificationsCount = computed(
   () => notifications.value.filter((n) => !(n.isRead || n.read)).length
 );
+
+// 拉取未读聊天消息总数 / Total unread chat messages count
+const unreadChatsCount = computed(
+  () => chats.value.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
+);
+
+// 是否有任何未读消息（聊天或通知），用于实时更新导航栏红点 / Whether there are any unread messages, for real-time nav badge update
+const hasAnyUnread = computed(() => {
+  const hasUnreadChats = chats.value.some(c => (c.unreadCount || 0) > 0);
+  const hasUnreadNotifs = notifications.value.some(n => !(n.isRead || n.read));
+  return hasUnreadChats || hasUnreadNotifs;
+});
+
+// 实时同步导航栏红点状态 / Real-time sync nav badge state
+const hasUnreadMessages = inject('hasUnreadMessages', null);
+watch(hasAnyUnread, (val) => {
+  if (hasUnreadMessages) {
+    hasUnreadMessages.value = val;
+  }
+});
 
 // 标记单条通知为已读
 async function markAsRead(notificationId) {
@@ -1155,6 +1181,7 @@ function mapConversationToChat(conv) {
     otherId,
     isMuted: conv.isMuted ?? false,
     isPinned: conv.isPinned ?? false,
+    isBlocked: conv.isBlocked ?? false,
     // 只根据是否已喜欢来判断是否显示爱心
     isFromMatch: isLiked,
   };
@@ -1210,6 +1237,11 @@ async function loadConversations() {
       await loadMessages(selectedChatId.value);
       // 检查关注状态
       await checkFollowStatus();
+    }
+    // 并行加载所有会话的消息，确保卡片显示最后一条消息（而非第一条）/ Load messages for all conversations in parallel to show last message on cards
+    const otherChats = chats.value.filter(c => c.id !== selectedChatId.value);
+    if (otherChats.length > 0) {
+      Promise.allSettled(otherChats.map(c => loadMessages(c.id).catch(() => {})));
     }
     // 排序：置顶的在前
     // sortChats();
@@ -1537,6 +1569,14 @@ const checkFollowStatus = async () => {
     const blockRes = await userApi.checkBlocking(selectedChat.value.otherId);
     isBlocking.value =
       blockRes?.data?.isBlocking || blockRes?.isBlocking || false;
+    // 同步更新聊天对象的屏蔽状态 / Sync block status to chat object
+    if (selectedChat.value) {
+      selectedChat.value.isBlocked = isBlocking.value;
+    }
+    const chatInList = chats.value.find(c => c.id === selectedChat.value?.id);
+    if (chatInList) {
+      chatInList.isBlocked = isBlocking.value;
+    }
   } catch (e) {
     console.error("检查关注/屏蔽状态失败", e);
     isFollowing.value = false;
@@ -1774,9 +1814,17 @@ const blockMessages = async () => {
       if (isBlocking.value) {
         await userApi.unblockUser(selectedChat.value.otherId);
         isBlocking.value = false;
+        // 同步更新聊天列表中的屏蔽状态 / Sync blocked status in chat list
+        if (selectedChat.value) selectedChat.value.isBlocked = false;
+        const chatInList = chats.value.find(c => c.id === selectedChat.value?.id);
+        if (chatInList) chatInList.isBlocked = false;
       } else {
         await userApi.blockUser(selectedChat.value.otherId);
         isBlocking.value = true;
+        // 同步更新聊天列表中的屏蔽状态 / Sync blocked status in chat list
+        if (selectedChat.value) selectedChat.value.isBlocked = true;
+        const chatInList = chats.value.find(c => c.id === selectedChat.value?.id);
+        if (chatInList) chatInList.isBlocked = true;
       }
       showOptionsMenu.value = false;
     } catch (e) {
@@ -2007,6 +2055,11 @@ const handleWebSocketMessage = async (message) => {
 
     if (chatIndex !== -1) {
       const chat = chats.value[chatIndex];
+      // 如果该会话已屏蔽，不更新卡片最后一条消息 / If the chat is blocked, don't update card's last message
+      if (chat.isBlocked) {
+        console.log("🚫 会话已屏蔽，跳过更新卡片最后一条消息:", chat.name);
+        return;
+      }
       // 更新会话的最后一条消息
       chat.lastMessage = content;
       chat.lastMessageTime = createdAt || new Date().toISOString();
@@ -2183,7 +2236,8 @@ onMounted(async () => {
   document.addEventListener("click", closeOptionsMenu);
   window.addEventListener("resize", handleResize);
 
-  await loadAIStatus();
+  // AI 默认关闭，不再从后端加载状态覆盖前端默认值 / AI defaults off, no longer load backend status to override frontend default
+  // 用户可手动点击 AI 按钮开启 / User can manually click AI button to enable
   
   // 清理事件监听器
   onUnmounted(() => {
