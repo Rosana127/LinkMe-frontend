@@ -189,6 +189,69 @@ body {
   color: #ffffff;
 }
 
+/* 帖子发布页：始终使用白底 + 浅银灰输入框，不受深色主题影响 */
+.app-container.theme-dark .create-post-page {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+}
+
+.app-container.theme-dark .create-post-page .meta,
+.app-container.theme-dark .create-post-page .tags-hint {
+  color: #6b7280 !important;
+}
+
+.app-container.theme-dark .create-post-page .label,
+.app-container.theme-dark .create-post-page .card-title {
+  color: #374151 !important;
+}
+
+.app-container.theme-dark .create-post-page input[type="text"],
+.app-container.theme-dark .create-post-page textarea,
+.app-container.theme-dark .create-post-page select {
+  background-color: #e8eaed !important;
+  border-color: #d4d8de !important;
+  color: #1f2937 !important;
+}
+
+.app-container.theme-dark .create-post-page .file-pick-btn {
+  background-color: #e8eaed !important;
+  border-color: #c5cad1 !important;
+  color: #374151 !important;
+}
+
+.app-container.theme-dark .create-post-page input::placeholder,
+.app-container.theme-dark .create-post-page textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+.app-container.theme-dark .create-post-page .tags-scroll {
+  background-color: #e8eaed !important;
+  border-color: #d4d8de !important;
+}
+
+.app-container.theme-dark .create-post-page .tag-chip {
+  background-color: #ffffff !important;
+  color: #4b5563 !important;
+  border-color: #d4d8de !important;
+}
+
+.app-container.theme-dark .create-post-page .tag-chip.selected {
+  background-color: #8b5cf6 !important;
+  color: #ffffff !important;
+  border-color: #8b5cf6 !important;
+}
+
+.app-container.theme-dark .create-post-page .post-card {
+  background-color: #f5f6f8 !important;
+  border-color: #e2e4e8 !important;
+}
+
+.app-container.theme-dark .create-post-page .top-tabs,
+.app-container.theme-dark .create-post-page .manage-tabs,
+.app-container.theme-dark .create-post-page .manage-toolbar {
+  background-color: #ffffff !important;
+}
+
 /* 深色主题下 Sidebar 配色，参考 Messages 界面 */
 .app-container.theme-dark .sidebar {
   background-color: #111827 !important;

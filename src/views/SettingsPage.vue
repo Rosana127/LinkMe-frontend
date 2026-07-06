@@ -1,42 +1,42 @@
 <template>
   <div class="settings-page">
     <div class="settings-container">
-      <h1 class="page-title">Settings</h1>
+      <h1 class="page-title">设置</h1>
       
       <div class="settings-sections">
-        <!-- Account Settings -->
+        <!-- 账号设置 -->
         <div class="settings-section">
-          <h2 class="section-title">Account</h2>
+          <h2 class="section-title">账号</h2>
           <div class="settings-item">
             <div class="item-info">
-              <h3>Profile Information</h3>
-              <p>Update your profile details</p>
+              <h3>个人资料</h3>
+              <p>更新您的个人资料</p>
             </div>
-            <button class="settings-btn" @click="openEditModal">Edit</button>
+            <button class="settings-btn" @click="openEditModal">编辑</button>
           </div>
           <div class="settings-item">
             <div class="item-info">
-              <h3>Privacy Settings</h3>
-              <p>Control who can see your content</p>
+              <h3>隐私设置</h3>
+              <p>控制谁可以查看您的内容</p>
             </div>
-            <button class="settings-btn">Manage</button>
+            <button class="settings-btn">管理</button>
           </div>
         </div>
 
-        <!-- App Settings -->
+        <!-- 应用设置 -->
         <div class="settings-section">
-          <h2 class="section-title">App</h2>
+          <h2 class="section-title">应用</h2>
           <div class="settings-item">
             <div class="item-info">
-              <h3>Notifications</h3>
-              <p>Manage your notification preferences</p>
+              <h3>通知</h3>
+              <p>管理您的通知偏好</p>
             </div>
-            <button class="settings-btn">Configure</button>
+            <button class="settings-btn">配置</button>
           </div>
           <div class="settings-item">
             <div class="item-info">
-              <h3>Theme</h3>
-              <p>Choose your preferred theme</p>
+              <h3>主题</h3>
+              <p>选择您喜欢的主题</p>
             </div>
             <div class="theme-selector-wrapper">
               <button 
@@ -72,46 +72,46 @@
           </div>
         </div>
 
-        <!-- Support -->
+        <!-- 帮助与支持 -->
         <div class="settings-section">
-          <h2 class="section-title">Support</h2>
+          <h2 class="section-title">帮助与支持</h2>
           <div class="settings-item">
             <div class="item-info">
-              <h3>Help Center</h3>
-              <p>Get help and support</p>
+              <h3>帮助中心</h3>
+              <p>获取帮助和支持</p>
             </div>
-            <button class="settings-btn">Visit</button>
+            <button class="settings-btn">访问</button>
           </div>
           <div class="settings-item">
             <div class="item-info">
-              <h3>Contact Us</h3>
-              <p>Send us feedback or report issues</p>
+              <h3>联系我们</h3>
+              <p>发送反馈或报告问题</p>
             </div>
-            <button class="settings-btn">Contact</button>
+            <button class="settings-btn">联系</button>
           </div>
         </div>
 
-        <!-- Danger Zone -->
+        <!-- 危险区域 -->
         <div class="settings-section danger-section">
-          <h2 class="section-title">Danger Zone</h2>
+          <h2 class="section-title">危险区域</h2>
           <div class="settings-item">
             <div class="item-info">
-              <h3>Logout</h3>
-              <p>Sign out of your account</p>
+              <h3>退出登录</h3>
+              <p>退出您的账号</p>
             </div>
             <button class="settings-btn danger-btn" @click="handleLogout">
               <span class="iconify" data-icon="mdi:logout" data-inline="false"></span>
-              Logout
+              退出登录
             </button>
           </div>
           <div class="settings-item">
             <div class="item-info">
-              <h3>Delete Account</h3>
-              <p>Permanently delete your account and all data</p>
+              <h3>删除账号</h3>
+              <p>永久删除您的账号和所有数据</p>
             </div>
             <button class="settings-btn danger-btn">
               <span class="iconify" data-icon="mdi:delete-outline" data-inline="false"></span>
-              Delete
+              删除
             </button>
           </div>
         </div>
@@ -130,12 +130,12 @@
         
         <div class="edit-form">
           <div class="form-field">
-            <label class="field-label">头像 (Avatar)</label>
+            <label class="field-label">头像</label>
             <div class="avatar-upload-section">
               <div class="avatar-preview">
                 <img 
                   :src="avatarPreview || editForm.avatar || currentUserInfo?.avatar || currentUserInfo?.avatarUrl || 'https://modao.cc/ai/uploads/ai_pics/32/327755/aigp_1758963762.jpeg'" 
-                  alt="Avatar Preview"
+                  alt="头像预览"
                   class="avatar-image"
                 >
               </div>
@@ -171,7 +171,7 @@
           </div>
 
           <div class="form-field">
-            <label class="field-label">名字 (Nickname)</label>
+            <label class="field-label">名字</label>
             <input 
               v-model="editForm.nickname" 
               type="text" 
@@ -182,7 +182,7 @@
           </div>
 
           <div class="form-field">
-            <label class="field-label">生日 (Birthday)</label>
+            <label class="field-label">生日</label>
             <input
               v-model="editForm.birthday"
               type="date"
@@ -192,7 +192,7 @@
           </div>
 
           <div class="form-field">
-            <label class="field-label">位置 (Location)</label>
+            <label class="field-label">位置</label>
             <input
               v-model="editForm.location"
               type="text"
@@ -203,7 +203,7 @@
           </div>
 
           <div class="form-field">
-            <label class="field-label">简介 (Bio)</label>
+            <label class="field-label">简介</label>
             <textarea 
               v-model="editForm.bio" 
               placeholder="介绍一下自己..."
@@ -215,7 +215,7 @@
           </div>
 
           <div class="form-field">
-            <label class="field-label">标签 (Tags)</label>
+            <label class="field-label">标签</label>
             <div class="tags-scroll" role="listbox">
               <button
                 v-for="tag in availableTags"

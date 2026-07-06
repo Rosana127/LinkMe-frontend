@@ -93,6 +93,18 @@ export function deleteComment(postId, commentId) {
 }
 
 /**
+ * 举报评论
+ * @param {Number|String} postId
+ * @param {Number|String} commentId
+ */
+export function reportComment(postId, commentId) {
+  return request({
+    url: `/posts/${postId}/comments/${commentId}/report`,
+    method: "post",
+  });
+}
+
+/**
  * 获取帖子列表（公共探索列表）
  * 支持 query params，如 page, limit, userId 等
  */
