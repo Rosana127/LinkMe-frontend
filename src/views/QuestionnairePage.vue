@@ -642,7 +642,7 @@ export default {
         { id: 'cycling', name: '骑行' },
         { id: 'fishing', name: '钓鱼' },
         { id: 'yoga', name: '瑜伽' },
-        { id: 'camping', name: '露营' },
+        { id: 'camping', name: '¶Ӫ' },
         { id: 'martial_arts', name: '武术' },
         { id: 'mountaineering', name: '登山' },
         { id: 'climbing', name: '攀岩' },

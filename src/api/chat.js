@@ -61,6 +61,10 @@ export function clearChatMessages(conversationId) {
     return request({ url: `/conversations/${conversationId}/messages`, method: 'delete' })
 }
 
+export function reportMessage(messageId, data = {}) {
+    return request({ url: `/conversations/messages/${messageId}/report`, method: 'post', data })
+}
+
 const chatApi = {
     getConversations,
     getConversation,
@@ -75,7 +79,8 @@ const chatApi = {
     deleteNotification,
     setPinStatus,
     setMuteStatus,
-    clearChatMessages
+    clearChatMessages,
+    reportMessage
 }
 
 export default chatApi

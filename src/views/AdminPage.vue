@@ -15,7 +15,7 @@
       <div v-if="error" class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ error }}</div>
       <div v-if="message" class="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">{{ message }}</div>
 
-      <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         <div class="rounded-2xl bg-white p-5 shadow-sm">
           <div class="text-sm text-gray-500">用户数量</div>
           <div class="mt-2 text-3xl font-bold">{{ stats.users ?? '-' }}</div>
@@ -32,18 +32,23 @@
 
       <div class="rounded-2xl bg-white p-2 shadow-sm">
         <div class="flex flex-wrap gap-2">
-          <button v-for="tab in tabs" :key="tab.key" class="rounded-xl px-4 py-2 text-sm font-semibold" :class="activeTab === tab.key ? 'bg-purple-600 text-white' : 'text-gray-600 hover:bg-gray-100'" @click="switchTab(tab.key)">
+          <button
+            v-for="tab in tabs"
+            :key="tab.key"
+            class="rounded-xl px-4 py-2 text-sm font-semibold"
+            :class="activeTab === tab.key ? 'bg-purple-600 text-white' : 'text-gray-600 hover:bg-gray-100'"
+            @click="switchTab(tab.key)"
+          >
             {{ tab.label }}
           </button>
         </div>
       </div>
 
-      <!-- 用户管理 -->
       <section v-if="activeTab === 'users'" class="rounded-2xl bg-white p-4 shadow-sm md:p-6">
         <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <h2 class="text-xl font-bold">用户管理</h2>
           <div class="flex flex-wrap gap-2">
-            <input v-model="keyword" class="rounded-lg border px-3 py-2 text-sm" placeholder="搜索 ID/昵称/账号/邮箱" @keyup.enter="loadUsers" />
+            <input v-model="keyword" class="rounded-lg border px-3 py-2 text-sm" placeholder="搜索 ID / 昵称 / 账号 / 邮箱" @keyup.enter="loadUsers" />
             <select v-model="filterRole" class="rounded-lg border px-3 py-2 text-sm" @change="loadUsers">
               <option value="">全部角色</option>
               <option value="customer">普通用户</option>
@@ -93,7 +98,7 @@
                   <span class="rounded-full px-2 py-1 text-xs font-medium" :class="statusClass(user.accountStatus)">{{ statusLabel(user.accountStatus) }}</span>
                   <div v-if="user.banUntil" class="mt-1 text-xs text-gray-400">至 {{ formatTime(user.banUntil) }}</div>
                 </td>
-                <td class="px-3 py-3 text-gray-500 hidden lg:table-cell">{{ formatTime(user.createdAt) }}</td>
+                <td class="px-3 py-3 hidden text-gray-500 lg:table-cell">{{ formatTime(user.createdAt) }}</td>
                 <td class="px-3 py-3">
                   <div class="flex flex-wrap gap-1">
                     <select class="rounded border px-2 py-1 text-xs" @change="onPunishSelect(user.userId, $event)">
@@ -114,7 +119,6 @@
         </div>
       </section>
 
-      <!-- 帖子 -->
       <section v-if="activeTab === 'posts'" class="rounded-2xl bg-white p-4 shadow-sm md:p-6">
         <h2 class="mb-4 text-xl font-bold">帖子审核</h2>
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -135,7 +139,6 @@
         </div>
       </section>
 
-      <!-- 评论 -->
       <section v-if="activeTab === 'comments'" class="rounded-2xl bg-white p-4 shadow-sm md:p-6">
         <h2 class="mb-4 text-xl font-bold">评论审核</h2>
         <div class="space-y-3">
@@ -155,7 +158,37 @@
         </div>
       </section>
 
-      <!-- 审核日志 -->
+      <section v-if="activeTab === 'reports'" class="rounded-2xl bg-white p-4 shadow-sm md:p-6">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-xl font-bold">举报待审核</h2>
+          <div class="text-sm text-gray-500">待处理 {{ pendingReviews.length }}</div>
+        </div>
+        <div v-if="pendingReviews.length === 0" class="text-sm text-gray-500">暂无待处理举报</div>
+        <div v-else class="space-y-3">
+          <div v-for="item in pendingReviews" :key="item.id" class="rounded-xl border p-4">
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+              <span>{{ reportTypeLabel(item.contentType) }} · ID {{ item.contentId }}</span>
+              <span>提交于 {{ formatTime(item.createTime) }}</span>
+            </div>
+            <div class="text-sm text-gray-700">
+              <div>举报人：{{ item.reporterNickname || (item.reporterId ? `ID ${item.reporterId}` : '-') }}</div>
+              <div>被举报对象：{{ item.targetUserNickname || (item.targetUserId ? `ID ${item.targetUserId}` : '-') }}</div>
+              <div>举报原因：{{ item.reportReason || '其他' }}</div>
+            </div>
+            <div v-if="item.content" class="mt-2 whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm text-gray-700">{{ item.content }}</div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button class="rounded bg-yellow-100 px-2 py-1 text-xs" @click="handleRejectReport(item.id)">驳回举报</button>
+              <button v-if="['post', 'comment', 'message'].includes(item.contentType)" class="rounded bg-red-600 px-2 py-1 text-xs text-white" @click="handleDeleteReportedContent(item)">直接删除</button>
+              <button v-if="item.targetUserId" class="rounded bg-orange-100 px-2 py-1 text-xs" @click="handlePunishReportedUser(item, 'warn')">警告用户</button>
+              <button v-if="item.targetUserId" class="rounded bg-orange-100 px-2 py-1 text-xs" @click="handlePunishReportedUser(item, 'restricted_post')">限制发帖</button>
+              <button v-if="item.targetUserId" class="rounded bg-orange-100 px-2 py-1 text-xs" @click="handlePunishReportedUser(item, 'restricted_comment')">限制评论</button>
+              <button v-if="item.targetUserId" class="rounded bg-orange-100 px-2 py-1 text-xs" @click="handlePunishReportedUser(item, 'temp_banned')">临时封禁</button>
+              <button v-if="item.targetUserId" class="rounded bg-orange-100 px-2 py-1 text-xs" @click="handlePunishReportedUser(item, 'perm_banned')">永久封禁</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section v-if="activeTab === 'audit'" class="rounded-2xl bg-white p-4 shadow-sm md:p-6">
         <h2 class="mb-4 text-xl font-bold">内容审核日志</h2>
         <div class="space-y-2 text-sm">
@@ -164,8 +197,8 @@
             <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-gray-500">
               <span>{{ log.auditResultLabel }}</span>
               <span>{{ log.targetSummary }}</span>
-              <span>发布者 {{ log.userNickname || (log.userId ? `ID:${log.userId}` : '-') }}</span>
-              <span>审核员 {{ log.auditorNickname || (log.auditorId ? `ID:${log.auditorId}` : '系统自动') }}</span>
+              <span>发布者：{{ log.userNickname || (log.userId ? `ID:${log.userId}` : '-') }}</span>
+              <span>审核者：{{ log.auditorNickname || (log.auditorId ? `ID:${log.auditorId}` : '系统自动') }}</span>
               <span>{{ formatTime(log.createTime) }}</span>
             </div>
             <div v-if="log.content" class="mt-2 text-gray-600">内容：{{ log.content }}</div>
@@ -175,7 +208,6 @@
         </div>
       </section>
 
-      <!-- 操作日志 -->
       <section v-if="activeTab === 'ops'" class="rounded-2xl bg-white p-4 shadow-sm md:p-6">
         <h2 class="mb-4 text-xl font-bold">管理员操作日志</h2>
         <div class="space-y-2 text-sm">
@@ -184,7 +216,7 @@
             <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-gray-500">
               <span>{{ log.actionLabel || log.action }}</span>
               <span>{{ log.targetSummary }}</span>
-              <span>管理员 {{ log.adminNickname || (log.adminId ? `ID:${log.adminId}` : '-') }}</span>
+              <span>管理员：{{ log.adminNickname || (log.adminId ? `ID:${log.adminId}` : '-') }}</span>
               <span>{{ formatTime(log.createTime) }}</span>
             </div>
             <div v-if="log.reason" class="mt-2 text-gray-600">原因：{{ log.reason }}</div>
@@ -204,15 +236,19 @@ import {
   deleteAdminComment,
   deleteAdminPost,
   deleteAdminUser,
+  deleteReportedContent,
   getAdminComments,
   getAdminPosts,
+  getPendingReviews,
   getAdminStats,
   getAdminUsers,
   getAuditLogs,
   getOperationLogs,
   moderateComment,
   moderatePost,
+  punishReportedUser,
   punishUser,
+  rejectPendingReview,
   unbanUser
 } from '@/api/admin'
 
@@ -223,6 +259,7 @@ const tabs = [
   { key: 'users', label: '用户管理' },
   { key: 'posts', label: '帖子审核' },
   { key: 'comments', label: '评论审核' },
+  { key: 'reports', label: '举报待审' },
   { key: 'audit', label: '审核日志' },
   { key: 'ops', label: '操作日志' }
 ]
@@ -241,6 +278,7 @@ const stats = ref({})
 const users = ref([])
 const posts = ref([])
 const comments = ref([])
+const pendingReviews = ref([])
 const auditLogs = ref([])
 const operationLogs = ref([])
 const keyword = ref('')
@@ -288,7 +326,9 @@ function modClass(s) {
 function showMessage(text) {
   message.value = text
   error.value = ''
-  setTimeout(() => { message.value = '' }, 2000)
+  setTimeout(() => {
+    message.value = ''
+  }, 2000)
 }
 
 function showError(err) {
@@ -298,6 +338,7 @@ function showError(err) {
 
 function switchTab(key) {
   activeTab.value = key
+  if (key === 'reports') loadPendingReviews()
   if (key === 'audit') loadAuditLogs()
   if (key === 'ops') loadOperationLogs()
 }
@@ -329,6 +370,10 @@ async function loadComments() {
   comments.value = await getAdminComments({ page: 1, size: 100 })
 }
 
+async function loadPendingReviews() {
+  pendingReviews.value = await getPendingReviews({ page: 1, size: 100 })
+}
+
 async function loadAuditLogs() {
   auditLogs.value = await getAuditLogs({ page: 1, size: 50 })
 }
@@ -340,6 +385,7 @@ async function loadOperationLogs() {
 async function loadAll() {
   try {
     await Promise.all([loadStats(), loadUsers(), loadPosts(), loadComments()])
+    if (activeTab.value === 'reports') await loadPendingReviews()
     if (activeTab.value === 'audit') await loadAuditLogs()
     if (activeTab.value === 'ops') await loadOperationLogs()
   } catch (err) {
@@ -347,16 +393,29 @@ async function loadAll() {
   }
 }
 
+function needsDuration(action) {
+  return ['warn', 'restricted_post', 'restricted_comment', 'temp_banned'].includes(action)
+}
+
+function askDurationDays(action) {
+  if (!needsDuration(action)) return undefined
+  const map = {
+    warn: '警告时长（天）',
+    restricted_post: '限制发帖时长（天）',
+    restricted_comment: '限制评论时长（天）',
+    temp_banned: '临时封禁时长（天）'
+  }
+  const input = prompt(map[action] || '处罚时长（天）', '7')
+  const days = parseInt(input, 10)
+  return Number.isFinite(days) && days > 0 ? days : 7
+}
+
 async function onPunishSelect(userId, event) {
   const action = event.target.value
   event.target.value = ''
   if (!action) return
   const reason = prompt('请输入处罚原因（可选）') || ''
-  let banDays
-  if (action === 'temp_banned') {
-    const d = prompt('临时封禁天数', '7')
-    banDays = parseInt(d, 10) || 7
-  }
+  const banDays = askDurationDays(action)
   if (!confirm('确认执行该处罚？')) return
   try {
     const msg = await punishUser(userId, { action, reason, banDays })
@@ -365,7 +424,7 @@ async function onPunishSelect(userId, event) {
   } catch (err) {
     const tip = err?.message || ''
     if (tip.includes('account_status')) {
-      showError(new Error('数据库缺少 account_status 字段，请执行后端 sql/请先执行-管理端数据库补丁.sql 后重启服务'))
+      showError(new Error('数据库缺少 account_status 字段，请先执行后端 sql/请先执行-管理端数据库补丁.sql 后重启服务'))
     } else {
       showError(err)
     }
@@ -383,7 +442,7 @@ async function handleUnban(userId) {
 }
 
 async function handleDeleteUser(userId) {
-  if (!confirm('确定删除该用户？不可恢复')) return
+  if (!confirm('确定删除该用户？此操作不可恢复。')) return
   try {
     await deleteAdminUser(userId)
     await Promise.all([loadUsers(), loadStats()])
@@ -432,6 +491,56 @@ async function handleDeleteComment(commentId) {
     await deleteAdminComment(commentId)
     await loadComments()
     showMessage('评论已删除')
+  } catch (err) {
+    showError(err)
+  }
+}
+
+function reportTypeLabel(type) {
+  const map = {
+    post: '帖子举报',
+    comment: '评论举报',
+    user: '用户举报',
+    message: '私信举报'
+  }
+  return map[type] || type || '举报'
+}
+
+async function handleRejectReport(queueId) {
+  const remark = prompt('驳回原因（可选）', '') || ''
+  try {
+    await rejectPendingReview(queueId, remark)
+    await loadPendingReviews()
+    showMessage('举报已驳回')
+  } catch (err) {
+    showError(err)
+  }
+}
+
+async function handleDeleteReportedContent(item) {
+  if (!confirm('确认直接删除这条被举报内容？')) return
+  try {
+    const remark =
+      prompt('处理说明（会通知举报人）', '举报内容违规，已删除') || '举报内容违规，已删除'
+    await deleteReportedContent(item.id, remark)
+    await Promise.all([loadPendingReviews(), loadAuditLogs()])
+    showMessage('内容已删除，并已通知举报人')
+  } catch (err) {
+    showError(err)
+  }
+}
+
+async function handlePunishReportedUser(item, action) {
+  let defaultReason = '用户被举报，需注意社区规范'
+  if (action === 'restricted_post') defaultReason = '因被举报，已限制发帖'
+  if (action === 'restricted_comment') defaultReason = '因被举报，已限制评论'
+  if (action === 'temp_banned') defaultReason = '因被举报，已临时封禁'
+  const reason = prompt('处罚原因（会通知被举报用户和举报人）', defaultReason) || defaultReason
+  const banDays = askDurationDays(action)
+  try {
+    await punishReportedUser(item.id, { action, reason, banDays })
+    await Promise.all([loadUsers(), loadPendingReviews(), loadAuditLogs()])
+    showMessage('已处罚用户，并已通知举报人')
   } catch (err) {
     showError(err)
   }

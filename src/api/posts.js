@@ -97,10 +97,19 @@ export function deleteComment(postId, commentId) {
  * @param {Number|String} postId
  * @param {Number|String} commentId
  */
-export function reportComment(postId, commentId) {
+export function reportComment(postId, commentId, data = {}) {
   return request({
     url: `/posts/${postId}/comments/${commentId}/report`,
     method: "post",
+    data,
+  });
+}
+
+export function reportPost(postId, data = {}) {
+  return request({
+    url: `/posts/${postId}/report`,
+    method: "post",
+    data,
   });
 }
 
@@ -171,6 +180,8 @@ const postsApi = {
   getComments,
   postComment,
   deleteComment,
+  reportComment,
+  reportPost,
   likePost,
   unlikePost,
 };

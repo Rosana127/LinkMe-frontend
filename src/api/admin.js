@@ -56,6 +56,30 @@ export function getAuditLogs(params = {}) {
   return request({ url: '/admin/audit-logs', method: 'get', params })
 }
 
+export function getPendingReviews(params = {}) {
+  return request({ url: '/admin/audit/pending', method: 'get', params })
+}
+
+export function approvePendingReview(queueId, remark = '') {
+  return request({ url: `/admin/audit/${queueId}/approve`, method: 'post', params: remark ? { remark } : {} })
+}
+
+export function rejectPendingReview(queueId, remark = '') {
+  return request({ url: `/admin/audit/${queueId}/reject`, method: 'post', params: remark ? { remark } : {} })
+}
+
+export function deleteReportedContent(queueId, remark = '') {
+  return request({ url: `/admin/audit/${queueId}/delete-content`, method: 'post', params: remark ? { remark } : {} })
+}
+
+export function punishReportedUser(queueId, data) {
+  return request({ url: `/admin/audit/${queueId}/punish`, method: 'post', data })
+}
+
+export function deleteAdminMessage(messageId) {
+  return request({ url: `/admin/messages/${messageId}`, method: 'delete' })
+}
+
 export function getOperationLogs(params = {}) {
   return request({ url: '/admin/operation-logs', method: 'get', params })
 }

@@ -782,7 +782,7 @@ const INTEREST_LABELS = {
   cycling: '骑行',
   fishing: '钓鱼',
   yoga: '瑜伽',
-  camping: '露营',
+  camping: '¶Ӫ',
   martial_arts: '武术',
   mountaineering: '登山',
   climbing: '攀岩',

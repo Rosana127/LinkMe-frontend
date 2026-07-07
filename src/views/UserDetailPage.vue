@@ -53,6 +53,12 @@
         >
           未关注
         </button>
+        <button
+          class="follow-button report-button"
+          @click="handleReportUser"
+        >
+          举报用户
+        </button>
       </div>
     </div>
     
@@ -92,7 +98,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { getUserInfo, followUser, unfollowUser, checkFollowing, getUserStats } from '@/api/user'
+import { getUserInfo, followUser, unfollowUser, checkFollowing, getUserStats, reportUser } from '@/api/user'
 import { getUserPosts } from '@/api/posts'
 import { fetchTagDefinitions } from '@/api/tags'
 
@@ -114,6 +120,21 @@ const isFollowing = computed(() => {
   const id = userId.value || Number(route.params.id)
   return followingMap.value.get(id) || false
 })
+
+async function handleReportUser() {
+  if (!currentUserId.value) {
+    alert('请先登录')
+    return
+  }
+  const reason = prompt('请输入举报原因', '骚扰辱骂')
+  if (!reason) return
+  try {
+    await reportUser(userId.value, { reason })
+    alert('举报成功，已提交管理员审核')
+  } catch (error) {
+    alert(error?.message || '举报失败，请重试')
+  }
+}
 
 // 生成文字头像（显示用户名字前两个字）
 function generateTextAvatar(name) {

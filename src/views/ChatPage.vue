@@ -429,6 +429,14 @@
                 "
               />
               <div class="chat-bubble bg-gray-700 max-w-md">
+                <div class="mb-1 flex justify-end">
+                  <button
+                    class="text-xs text-gray-400 hover:text-red-300"
+                    @click="handleReportMessage(message)"
+                  >
+                    举报
+                  </button>
+                </div>
                 <div v-if="message.isAI" class="flex items-center mb-1">
                   <span
                     class="iconify mr-1 text-purple-400"
@@ -545,6 +553,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch, inject } from "
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import * as chatApi from "@/api/chat";
+import { reportMessage } from "@/api/chat";
 import * as userApi from "@/api/user";
 import * as aiApi from "@/api/ai";
 import { sendLikeNotification, cancelLikeNotification } from '@/api/likes';
@@ -783,6 +792,21 @@ function goToUserDetail(userId) {
   }
   console.log('跳转到用户详情页，用户ID:', userId)
   router.push({ name: 'user', params: { id: userId } })
+}
+
+async function handleReportMessage(message) {
+  if (!authStore.isAuthenticated) {
+    alert("请先登录")
+    return
+  }
+  const reason = prompt("请输入举报原因", "骚扰辱骂")
+  if (!reason) return
+  try {
+    await reportMessage(message.id, { reason })
+    alert("举报成功，已提交管理员审核")
+  } catch (error) {
+    alert(error?.message || "举报失败，请重试")
+  }
 }
 
 // 处理聊天头部点击（头像或名称）

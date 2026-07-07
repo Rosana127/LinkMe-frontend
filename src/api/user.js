@@ -140,6 +140,14 @@ export function checkBlocking(userId) {
   })
 }
 
+export function reportUser(userId, data = {}) {
+  return request({
+    url: `/user/${userId}/report`,
+    method: 'post',
+    data
+  })
+}
+
 export function updateCurrentUser(userData) {
   const userStr = localStorage.getItem('user')
   if (!userStr) {

@@ -28,7 +28,7 @@
             @click.stop
           >
             <div
-              v-if="authStore.isLoggedIn"
+              v-if="authStore.isAuthenticated"
               @click.stop="
                 toggleFollow(post.author.id);
                 hideUserMenu();
@@ -45,6 +45,13 @@
               class="menu-item"
             >
               查看详情
+            </div>
+            <div
+              v-if="authStore.isAuthenticated && post.author.id !== authStore.userId"
+              @click.stop="openReportMenu('user', post.author)"
+              class="menu-item"
+            >
+              举报用户
             </div>
           </div>
         </div>
@@ -120,6 +127,13 @@
           ></span>
           评论 ({{ totalCommentCount }})
         </button>
+        <button
+          v-if="authStore.isAuthenticated && post.author.id !== authStore.userId"
+          class="comment-btn"
+          @click="openReportMenu('post', post)"
+        >
+          举报帖子
+        </button>
       </div>
 
       <!-- Toast 提示 -->
@@ -128,13 +142,13 @@
       <!-- 举报菜单弹窗 -->
       <div v-if="showReportMenu" class="report-overlay" @click="cancelReport">
         <div class="report-menu" @click.stop>
-          <div class="report-menu-title">举报评论</div>
+          <div class="report-menu-title">{{ reportDialogTitle }}</div>
           <div class="report-menu-reasons">
-            <button class="report-reason-btn" @click="confirmReport('色情低俗')">色情低俗</button>
-            <button class="report-reason-btn" @click="confirmReport('侮辱谩骂')">侮辱谩骂</button>
-            <button class="report-reason-btn" @click="confirmReport('广告营销')">广告营销</button>
-            <button class="report-reason-btn" @click="confirmReport('虚假信息')">虚假信息</button>
-            <button class="report-reason-btn" @click="confirmReport('其他')">其他</button>
+            <button class="report-reason-btn" @click="submitReport('色情低俗')">色情低俗</button>
+            <button class="report-reason-btn" @click="submitReport('侮辱谩骂')">侮辱谩骂</button>
+            <button class="report-reason-btn" @click="submitReport('广告营销')">广告营销</button>
+            <button class="report-reason-btn" @click="submitReport('虚假信息')">虚假信息</button>
+            <button class="report-reason-btn" @click="submitReport('其他')">其他</button>
           </div>
           <button class="report-cancel-btn" @click="cancelReport">取消</button>
         </div>
@@ -230,7 +244,7 @@
                     class="comment-report-box"
                     @click.stop
                   >
-                    <button class="report-btn" @click.stop="confirmReport(c)">举报该评论</button>
+                    <button class="report-btn" @click.stop="openReportMenu('comment', c)">举报该评论</button>
                   </div>
                 </div>
               </div>
@@ -307,7 +321,7 @@
                         class="comment-report-box"
                         @click.stop
                       >
-                        <button class="report-btn" @click.stop="confirmReport(reply)">举报该评论</button>
+                        <button class="report-btn" @click.stop="openReportMenu('comment', reply)">举报该评论</button>
                       </div>
                     </div>
                   </div>
@@ -388,7 +402,7 @@
                             class="comment-report-box"
                             @click.stop
                           >
-                            <button class="report-btn" @click.stop="confirmReport(nestedReply)">举报该评论</button>
+                            <button class="report-btn" @click.stop="openReportMenu('comment', nestedReply)">举报该评论</button>
                           </div>
                         </div>
                       </div>
@@ -438,11 +452,12 @@ import {
   postComment,
   deleteComment,
   reportComment,
+  reportPost,
   likePost,
   unlikePost,
 } from "@/api/posts";
 import { useAuthStore } from "@/stores/auth";
-import { followUser, unfollowUser } from "@/api/user";
+import { followUser, unfollowUser, reportUser } from "@/api/user";
 import { fetchTagDefinitions } from "@/api/tags";
 import {
   addPostToFavorites,
@@ -571,6 +586,9 @@ const error = ref("");
 // 举报相关状态
 const reportedComments = ref(new Set());
 const showingCommentMore = ref(null);
+const showReportMenu = ref(false);
+const reportTarget = ref(null);
+const reportTargetType = ref("comment");
 
 // 用户菜单相关状态
 const showingMenu = ref(false);
@@ -599,6 +617,12 @@ const currentImageSrc = computed(() => {
     return img?.url || img?.data || "";
   }
   return post.value.image || "";
+});
+
+const reportDialogTitle = computed(() => {
+  if (reportTargetType.value === "post") return "举报帖子";
+  if (reportTargetType.value === "user") return "举报用户";
+  return "举报评论";
 });
 
 // 获取本地点赞状态
@@ -844,6 +868,35 @@ function hideUserMenu() {
   selectedUser.value = null;
 }
 
+function openReportMenu(type, target) {
+  if (!authStore.isAuthenticated) {
+    showToastMessage("请先登录");
+    return;
+  }
+  if (type === "comment" && target?.userId === authStore.userId) {
+    showToastMessage("不能举报自己的评论");
+    return;
+  }
+  if (type === "user" && target?.id === authStore.userId) {
+    showToastMessage("不能举报自己");
+    return;
+  }
+  if (type === "post" && post.value?.author?.id === authStore.userId) {
+    showToastMessage("不能举报自己的帖子");
+    return;
+  }
+  reportTargetType.value = type;
+  reportTarget.value = target;
+  showReportMenu.value = true;
+  showingCommentMore.value = null;
+  hideUserMenu();
+}
+
+function cancelReport() {
+  showReportMenu.value = false;
+  reportTarget.value = null;
+}
+
 function goToUserDetail(userId) {
   if (!userId) {
     console.error("用户ID为空，无法跳转到用户详情页");
@@ -882,7 +935,7 @@ function isFollowing(userId) {
 }
 
 async function toggleFollow(userId) {
-  if (!authStore.isLoggedIn) return;
+  if (!authStore.isAuthenticated) return;
 
   try {
     if (isFollowing(userId)) {
@@ -1149,19 +1202,24 @@ function toggleCommentMore(commentId) {
   }
 }
 
-// 确认举报
-async function confirmReport(comment) {
-  showingCommentMore.value = null;
-
-  if (reportedComments.value.has(comment.id)) {
-    showToastMessage("您已举报过该评论");
-    return;
-  }
-
+async function submitReport(reason) {
+  const target = reportTarget.value;
+  if (!target) return;
   try {
-    const userId = authStore.userId;
-    await reportComment(id, comment.id, { userId });
-    reportedComments.value.add(comment.id);
+    if (reportTargetType.value === "comment") {
+      if (reportedComments.value.has(target.id)) {
+        showToastMessage("您已举报过该评论");
+        cancelReport();
+        return;
+      }
+      await reportComment(id, target.id, { reason });
+      reportedComments.value.add(target.id);
+    } else if (reportTargetType.value === "post") {
+      await reportPost(id, { reason });
+    } else if (reportTargetType.value === "user") {
+      await reportUser(target.id, { reason });
+    }
+    cancelReport();
     showToastMessage("举报成功，已送入人工审查");
   } catch (err) {
     console.error("举报失败:", err);
