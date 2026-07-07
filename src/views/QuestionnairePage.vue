@@ -474,8 +474,59 @@
           ></textarea>
         </div>
 
-        <!-- Step 8: 完成 -->
+        <!-- Step 8: 头像上传（可选） -->
         <div v-if="currentStep === 8">
+          <h2 class="text-xl font-bold mb-2">设置头像</h2>
+          <p class="text-gray-500 mb-6">上传一张你的照片，让大家更好地认识你（可选，可跳过）</p>
+
+          <div class="flex flex-col items-center gap-4">
+            <!-- 头像预览 -->
+            <div class="relative">
+              <img
+                v-if="avatarPreview"
+                :src="avatarPreview"
+                class="w-32 h-32 rounded-full object-cover border-4 border-purple-200 shadow-lg"
+                alt="头像预览"
+              />
+              <div
+                v-else
+                class="w-32 h-32 rounded-full bg-gray-100 border-4 border-gray-200 flex items-center justify-center"
+              >
+                <span class="iconify text-5xl text-gray-400" data-icon="mdi:camera-plus" data-inline="false"></span>
+              </div>
+              <button
+                v-if="avatarPreview"
+                @click="removeAvatar"
+                class="absolute -top-1 -right-1 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow"
+                title="移除头像"
+              >
+                <span class="iconify text-sm" data-icon="mdi:close" data-inline="false"></span>
+              </button>
+            </div>
+
+            <!-- 上传按钮 -->
+            <label class="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer font-medium">
+              {{ avatarPreview ? '更换头像' : '选择图片' }}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                class="hidden"
+                @change="handleAvatarUpload"
+              />
+            </label>
+            <p class="text-xs text-gray-400">支持 JPG、PNG、GIF、WebP 格式</p>
+
+            <!-- 跳过按钮 -->
+            <button
+              v-if="!avatarPreview"
+              @click="nextStep"
+              class="text-gray-500 text-sm underline hover:text-gray-700"
+            >跳过，以后再说</button>
+          </div>
+        </div>
+
+        <!-- Step 9: 完成 -->
+        <div v-if="currentStep === 9">
           <div class="text-center py-8">
             <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -498,7 +549,7 @@
       <!-- Navigation Buttons -->
       <div class="flex justify-between mt-8">
         <button
-          v-if="currentStep > 1 && currentStep < 8"
+          v-if="currentStep > 1 && currentStep < 9"
           @click="prevStep"
           class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
         >
@@ -507,7 +558,7 @@
         <div v-else></div>
 
         <button
-          v-if="currentStep < 8"
+          v-if="currentStep < 9"
           @click="canProceed ? nextStep() : null"
           :disabled="!canProceed || isSaving"
           class="px-6 py-3 rounded-lg transition-colors font-medium border"
@@ -536,7 +587,7 @@ export default {
   data() {
     return {
       currentStep: 1,
-      totalSteps: 8,
+      totalSteps: 9,
       isLoading: false,
       isSaving: false,
       isAutoSaving: false,
@@ -557,6 +608,8 @@ export default {
         distanceRequirement: '',
         additionalRequirements: ''
       },
+      avatarFile: null,
+      avatarPreview: null,
       // 爱好数据
       artEntertainment: [
         { id: 'art', name: '绘画' },
@@ -649,6 +702,8 @@ export default {
           return this.formData.distanceRequirement !== ''
         case 7:
           return true // 额外要求是选填的
+        case 8:
+          return true // 头像上传是可选的
         default:
           return false
       }
@@ -688,6 +743,9 @@ export default {
       if (includeAdditional) {
         payload.additionalRequirements = this.formData.additionalRequirements || ''
       }
+      if (this.avatarPreview) {
+        payload.avatarUrl = this.avatarPreview
+      }
       return payload
     },
     toggleInterest(interestId) {
@@ -697,6 +755,24 @@ export default {
       } else {
         this.formData.interests.push(interestId)
       }
+    },
+    handleAvatarUpload(event) {
+      const file = event.target.files[0]
+      if (!file) return
+      if (file.size > 5 * 1024 * 1024) {
+        this.errorMessage = '图片大小不能超过5MB'
+        event.target.value = ''
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        this.avatarPreview = e.target.result
+      }
+      reader.readAsDataURL(file)
+      event.target.value = ''
+    },
+    removeAvatar() {
+      this.avatarPreview = null
     },
     toggleUnlimitedAge() {
       if (this.formData.ageRequirement.unlimited) {
@@ -797,7 +873,7 @@ export default {
         return
       }
 
-      // 如果是第7步（最后一步输入），保存数据
+      // 如果是第8步（头像上传），提交问卷数据
       if (this.currentStep === this.totalSteps - 1) {
         await this.submitQuestionnaireData()
         return
@@ -848,7 +924,7 @@ export default {
           this.saveMessage = ''
         }, 3000)
 
-        // 进入完成页面（第8步）
+        // 进入完成页面（第9步）
         if (this.currentStep < this.totalSteps) {
           this.currentStep++
         }
@@ -951,6 +1027,10 @@ export default {
           // 额外要求
           if (existingData.additionalRequirements) {
             this.formData.additionalRequirements = existingData.additionalRequirements
+          }
+          // 头像
+          if (existingData.avatarUrl) {
+            this.avatarPreview = existingData.avatarUrl
           }
         }
       } catch (error) {

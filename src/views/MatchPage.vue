@@ -654,7 +654,7 @@ const loadMatchedUsers = async () => {
         location: rec.region || '未知',
         job: '未知', // 后端暂未提供此字段
         distance: '未知距离', // 后端暂未提供此字段
-        photo: rec.avatarUrl || getDefaultAvatar(rec.gender),
+        photo: rec.avatarUrl || null,
         bio: rec.bio || '这个人很懒，什么都没有留下。',
         tags: [], // 后端暂未提供此字段
         interests: [], // 后续通过问卷API加载
@@ -715,26 +715,35 @@ const getPersonalityLabel = (field, value) => {
   return PERSONALITY_LABELS[field]?.[value] || value
 }
 
-// 根据性别获取默认头像
-// 图2：男性/中性角色（红棕色头发，动漫风格）
-// 图3：女性角色（蓝色头发，黄色发夹，动漫风格）
-const getDefaultAvatar = (gender) => {
-  // 如果gender是'female'或'女'，返回女性头像（图3）
-  if (gender === 'female' || gender === '女' || gender === 'F') {
-    return '/default-avatar-female.png' // 图3：女性角色
-  }
-  // 默认返回男性/中性头像（图2）
-  return '/default-avatar-male.png' // 图2：男性/中性角色
+// 生成名字文字头像（Canvas 绘制，基于名字哈希的颜色背景 + 前两个字）
+const generateTextAvatar = (name) => {
+  if (!name) return null
+
+  const text = name.length >= 2 ? name.substring(0, 2) : name.substring(0, 1)
+  const canvas = document.createElement('canvas')
+  canvas.width = 80
+  canvas.height = 80
+  const ctx = canvas.getContext('2d')
+
+  const colors = ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#ec4899','#06b6d4','#6366f1']
+  const hash = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+  ctx.fillStyle = colors[hash % colors.length]
+  ctx.fillRect(0, 0, 80, 80)
+  ctx.fillStyle = '#ffffff'
+  ctx.font = 'bold 32px Arial, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, 40, 40)
+  return canvas.toDataURL()
 }
 
-// 获取用户头像（优先使用用户上传的头像，否则根据性别返回默认头像）
+// 获取用户头像：优先上传的头像，否则用名字文字头像
 const getUserAvatar = (user) => {
   const avatarUrl = user?.avatarUrl || user?.avatar || user?.photo
-  if (avatarUrl) {
-    return avatarUrl
-  }
-  // 如果没有头像，根据性别返回默认头像
-  return getDefaultAvatar(user?.gender)
+  if (avatarUrl) return avatarUrl
+  const name = user?.name || user?.nickname || user?.username || ''
+  if (name) return generateTextAvatar(name)
+  return null
 }
 
 // 获取性别显示文本
@@ -822,8 +831,8 @@ const formatUsersData = (usersData) => {
     job: user.job || user.profession || '未知',
     // 距离：如果有就使用，否则使用默认值
     distance: user.distance || '未知距离',
-    // 头像：优先使用 avatarUrl，然后是 avatar、photo，最后根据性别使用默认头像
-    photo: user.avatarUrl || user.avatar || user.photo || getDefaultAvatar(user.gender),
+    // 头像：优先使用 avatarUrl，然后是 avatar、photo
+    photo: user.avatarUrl || user.avatar || user.photo || null,
     // 简介：bio、introduction、description
     bio: user.bio || user.introduction || user.description || '这个人很懒，什么都没有留下。',
     // 标签和兴趣

@@ -141,7 +141,7 @@
             <div class="avatar-upload-section">
               <div class="avatar-preview">
                 <img 
-                  :src="avatarPreview || editForm.avatar || currentUserInfo?.avatar || currentUserInfo?.avatarUrl || 'https://modao.cc/ai/uploads/ai_pics/32/327755/aigp_1758963762.jpeg'" 
+                  :src="displayAvatar" 
                   alt="头像预览"
                   class="avatar-image"
                 >
@@ -284,7 +284,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getUserInfo, updateCurrentUser } from '@/api/user'
@@ -316,6 +316,20 @@ const currentUserInfo = ref(null)
 
 // 头像预览（临时预览，还未保存）
 const avatarPreview = ref('')
+
+// 显示头像：优先预览/上传的/用户头像，兜底用文字头像
+const displayAvatar = computed(() => {
+  const avatar = avatarPreview.value || editForm.value.avatar || currentUserInfo.value?.avatar || currentUserInfo.value?.avatarUrl
+  if (avatar) return avatar
+  const name = editForm.value.nickname || currentUserInfo.value?.nickname || currentUserInfo.value?.username || ''
+  if (!name) return ''
+  const text = name.length >= 2 ? name.substring(0, 2) : name.substring(0, 1)
+  const colors = ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#ec4899','#06b6d4','#6366f1']
+  const hash = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+  const bg = colors[hash % colors.length]
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="${bg}"/><text x="100" y="100" fill="white" font-size="80" font-family="Arial,sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="central">${text}</text></svg>`
+  return 'data:image/svg+xml,' + encodeURIComponent(svg)
+})
 
 // 标签相关
 const availableTags = ref([])
