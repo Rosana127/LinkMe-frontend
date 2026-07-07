@@ -155,6 +155,7 @@ watch(() => route.name, () => {
 .app-container:has(.admin-standalone-root),
 .app-container.is-admin-layout {
   padding-left: 0;
+  display: block;
 }
 
 .main-content {
