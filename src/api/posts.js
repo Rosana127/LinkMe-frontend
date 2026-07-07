@@ -117,6 +117,25 @@ export function getPosts(params = {}) {
 }
 
 /**
+ * 获取协同过滤推荐帖子
+ * 已登录：基于点赞行为的 User-Based CF；未登录/冷启动：热门/最新兜底
+ * @param {Number} limit 推荐数量，默认 20，最大 100
+ */
+export async function getRecommendedPosts(limit = 20) {
+  try {
+    const res = await request({
+      url: "/posts/recommended",
+      method: "get",
+      params: { limit },
+    });
+    return Array.isArray(res) ? res : res?.data || [];
+  } catch (e) {
+    console.error("[getRecommendedPosts] 获取推荐帖子失败:", e);
+    throw e;
+  }
+}
+
+/**
  * 点赞帖子
  * @param {Number|String} postId
  * @param {Number} userId
@@ -147,6 +166,7 @@ const postsApi = {
   getUserPosts,
   deletePost,
   getPosts,
+  getRecommendedPosts,
   getPost,
   getComments,
   postComment,

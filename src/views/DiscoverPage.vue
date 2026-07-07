@@ -163,7 +163,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { getPosts, likePost, unlikePost } from '@/api/posts'
+import { getPosts, getRecommendedPosts, getPost, likePost, unlikePost } from '@/api/posts'
 import { getFavoriteFolders, createFavoriteFolder, addPostToFavorites } from '@/api/favorites'
 import { followUser, unfollowUser } from '@/api/user'
 import { fetchTagDefinitions } from '@/api/tags'
@@ -279,6 +279,10 @@ function formatTags(tagIds) {
 }
 
 // 数据映射
+function parsePostArray(res) {
+  return Array.isArray(res) ? res : (res?.data && Array.isArray(res.data) ? res.data : [])
+}
+
 function mapBackendToView(raw) {
   const author = raw.user || raw.author || raw.creator || {}
   const images = Array.isArray(raw.images) ? raw.images : (raw.images ? [raw.images] : [])
@@ -301,7 +305,7 @@ function mapBackendToView(raw) {
       avatar: raw.avatarUrl || author.avatar || author.photo || author.image || author.avatarUrl || null,
       name: raw.nickname || author.nickname || raw.username || author.name || author.username || '匿名',
       handle: raw.username || author.handle || author.username || (raw.nickname ? raw.nickname.replace(/\s+/g, '') : (author.nickname ? author.nickname.replace(/\s+/g, '') : '')),
-      isFollowed: raw.isFollowed || false
+      isFollowed: raw.isFollowed || author.isFollowed || false
     },
     time: raw.createdAt ? new Date(raw.createdAt).toLocaleString() : (raw.time || ''),
     location: raw.location || '',
@@ -316,19 +320,33 @@ function mapBackendToView(raw) {
   }
 }
 
-// 加载帖子
+// 加载推荐帖子（协同过滤）
+async function loadRecommendedPosts() {
+  const res = await getRecommendedPosts(50)
+  const arr = parsePostArray(res)
+  recommendedPosts.value = arr.map(mapBackendToView)
+}
+
+// 加载关注用户的帖子
+async function loadFollowingPosts() {
+  const res = await getPosts({ page: 1, limit: 100 })
+  const arr = parsePostArray(res)
+  allPosts.value = arr.map(mapBackendToView)
+  followingPosts.value = allPosts.value.filter(p => p.author?.isFollowed)
+}
+
+// 加载探索页数据
 async function loadExplore() {
   loading.value = true
   error.value = ''
   try {
-    const res = await getPosts()
-    console.log('[DiscoverPage] API响应:', res)
-    const arr = Array.isArray(res) ? res : (res?.data && Array.isArray(res.data) ? res.data : [])
-    console.log('[DiscoverPage] 解析后的帖子数组:', arr)
-    allPosts.value = arr.map(mapBackendToView)
-    recommendedPosts.value = allPosts.value
-    followingPosts.value = allPosts.value.filter(p => p.author && p.author.isFollowed)
-    console.log('[DiscoverPage] 映射后的帖子:', allPosts.value)
+    await loadRecommendedPosts()
+    if (isAuthenticated.value) {
+      await loadFollowingPosts()
+    } else {
+      allPosts.value = []
+      followingPosts.value = []
+    }
   } catch (e) {
     console.error('[DiscoverPage] 加载探索帖子失败', {
       error: e,
@@ -337,7 +355,6 @@ async function loadExplore() {
       response: e.response,
       request: e.request
     })
-    // 显示更详细的错误信息
     if (e.message) {
       if (e.message.includes('401') || e.message.includes('未授权')) {
         error.value = '请先登录'
@@ -490,6 +507,10 @@ async function toggleLike(post) {
     }
     
     await refreshPostData(post.id)
+    // 点赞行为会影响协同过滤结果，刷新推荐列表
+    if (activeCategory.value === 'recommended') {
+      loadRecommendedPosts().catch(err => console.error('刷新推荐列表失败', err))
+    }
   } catch (error) {
     console.error('点赞操作失败', error)
     post.liked = wasLiked
@@ -499,28 +520,23 @@ async function toggleLike(post) {
 }
 
 // 刷新帖子数据
+function updatePostInLists(newPostData) {
+  const postId = newPostData.id
+  const lists = [allPosts, recommendedPosts, followingPosts]
+  for (const list of lists) {
+    const index = list.value.findIndex(p => p.id === postId)
+    if (index !== -1) {
+      list.value[index] = newPostData
+    }
+  }
+}
+
 async function refreshPostData(postId) {
   try {
-    const res = await getPosts()
-    const arr = Array.isArray(res) ? res : (res?.data && Array.isArray(res.data) ? res.data : [])
-    const updatedPost = arr.find(p => (p.postId ?? p.id ?? p._id) === postId)
-    
-    if (updatedPost) {
-      const index = allPosts.value.findIndex(p => p.id === postId)
-      if (index !== -1) {
-        const newPostData = mapBackendToView(updatedPost)
-        allPosts.value[index] = newPostData
-        
-        const recIndex = recommendedPosts.value.findIndex(p => p.id === postId)
-        if (recIndex !== -1) {
-          recommendedPosts.value[recIndex] = newPostData
-        }
-        
-        const folIndex = followingPosts.value.findIndex(p => p.id === postId)
-        if (folIndex !== -1) {
-          followingPosts.value[folIndex] = newPostData
-        }
-      }
+    const res = await getPost(postId)
+    const raw = res?.data || res
+    if (raw) {
+      updatePostInLists(mapBackendToView(raw))
     }
   } catch (error) {
     console.error('刷新帖子数据失败', error)
@@ -593,6 +609,10 @@ async function createNewFolder() {
 watch(isAuthenticated, (newVal) => {
   if (!newVal) {
     activeCategory.value = 'recommended'
+    followingPosts.value = []
+  } else {
+    loadFollowingPosts().catch(err => console.error('加载关注帖子失败', err))
+    loadRecommendedPosts().catch(err => console.error('刷新推荐帖子失败', err))
   }
 })
 
