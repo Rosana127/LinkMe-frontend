@@ -918,7 +918,7 @@ const filteredNotifications = computed(() => {
 });
 
 const selectedChat = computed(
-  () => chats.value.find((c) => c.id === selectedChatId.value) || null
+  () => chats.value.find((c) => String(c.id) === String(selectedChatId.value)) || null
 );
 
 function formatTime(ts) {
@@ -1275,7 +1275,7 @@ async function loadMessages(conversationId) {
       senderAvatar: m.senderAvatar ?? m.sender_avatar,
     }));
     console.log("映射后的消息数组:", msgs);
-    const idx = chats.value.findIndex((c) => c.id === conversationId);
+    const idx = chats.value.findIndex((c) => String(c.id) === String(conversationId));
     console.log("找到的会话索引:", idx);
     if (idx >= 0) {
       chats.value[idx].messages = msgs;
@@ -1317,7 +1317,7 @@ const selectChat = async (chatId) => {
     try {
       await chatApi.markRead(chatId);
       // Update the unreadCount for this chat in the local state
-      const idx = chats.value.findIndex((c) => c.id === chatId);
+      const idx = chats.value.findIndex((c) => String(c.id) === String(chatId));
       if (idx >= 0) {
         chats.value[idx].unreadCount = 0;
       }
@@ -1615,7 +1615,7 @@ const sendMessage = async () => {
   };
 
   // 将临时消息添加到前端消息列表
-  const chatIdx = chats.value.findIndex((c) => c.id === conversationId);
+  const chatIdx = chats.value.findIndex((c) => String(c.id) === String(conversationId));
   if (chatIdx >= 0) {
     chats.value[chatIdx].messages.push(tempMessage);
     chats.value[chatIdx].lastMessage = content;
@@ -1630,8 +1630,22 @@ const sendMessage = async () => {
 
   try {
     // 发送消息到后端
-    await chatApi.postMessage(conversationId, payload);
+    const response = await chatApi.postMessage(conversationId, payload);
     console.log("消息发送成功，WebSocket将自动推送给对方");
+    
+    // 如果后端返回了真实的messageId，更新临时消息的ID，避免后续WebSocket推送导致重复
+    // Update temp message ID with real backend messageId to prevent duplicates from WebSocket push
+    if (response && (response.messageId || response.data?.messageId)) {
+      const realMessageId = response.messageId || response.data?.messageId;
+      const chatIdx = chats.value.findIndex((c) => String(c.id) === String(conversationId));
+      if (chatIdx >= 0) {
+        const msg = chats.value[chatIdx].messages.find((m) => m.id === tempMessage.id);
+        if (msg) {
+          msg.id = realMessageId;
+          console.log("已更新临时消息ID为真实ID:", realMessageId);
+        }
+      }
+    }
     
     // 不需要重新加载消息列表，WebSocket会自动处理
     // 如果需要确认消息ID等信息，可以选择性地重新加载
@@ -2080,7 +2094,8 @@ const handleWebSocketMessage = async (message) => {
       
       if (!isMyMessage) {
         // 如果当前正在查看这个会话，标记为已读
-        if (selectedChatId.value === chat.id) {
+        // Always use String conversion for comparison to avoid type mismatch issues
+        if (String(selectedChatId.value) === String(chat.id)) {
           // 标记消息为已读
           try {
             await chatApi.markRead(conversationId);
@@ -2112,7 +2127,8 @@ const handleWebSocketMessage = async (message) => {
       */
 
       // 如果当前正在查看这个会话，更新消息列表
-      if (selectedChatId.value === chat.id) {
+      // Always use String conversion for comparison to avoid type mismatch issues
+      if (String(selectedChatId.value) === String(chat.id)) {
         const newMsg = {
           id: messageId || Date.now(),
           content: content,
@@ -2125,7 +2141,7 @@ const handleWebSocketMessage = async (message) => {
           senderAvatar: senderAvatar || chat.avatar,
         };
         
-        const selectedChatObj = chats.value.find((c) => c.id === selectedChatId.value);
+        const selectedChatObj = chats.value.find((c) => String(c.id) === String(selectedChatId.value));
         if (selectedChatObj && selectedChatObj.messages) {
           // 检查消息是否已存在（避免重复）
           const exists = selectedChatObj.messages.some(m => 
