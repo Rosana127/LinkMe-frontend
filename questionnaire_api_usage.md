@@ -2,13 +2,13 @@
 
 ## 概述
 
-LinKMe项目的问卷系统提供了完整的保存和拉取功能，支持用户分步填写问卷、自动保存草稿、以及数据恢复。
+LinkMe 项目的问卷系统提供精简的匹配问卷功能，支持用户分步填写、自动保存草稿、以及数据恢复。问卷共 7 步，涵盖兴趣爱好、自身性格特质、交友要求等核心维度。
 
 ## 功能特性
 
 ### 1. 数据保存
-- **最终提交**：用户完成问卷后提交完整数据
-- **自动保存**：填写过程中每5秒自动保存草稿
+- **最终提交**：用户完成问卷后提交完整数据（POST，标记 `matching_questionnaire_completed=TRUE`）
+- **自动保存**：填写过程中每 5 秒自动保存草稿（PUT，不标记完成）
 - **部分更新**：支持更新部分问卷数据
 
 ### 2. 数据拉取
@@ -18,61 +18,113 @@ LinKMe项目的问卷系统提供了完整的保存和拉取功能，支持用�
 ### 3. 用户体验
 - **进度提示**：显示保存状态和进度
 - **错误处理**：友好的错误提示和恢复机制
-- **防抖机制**：避免频繁的API调用
+- **防抖机制**：避免频繁的 API 调用
+
+## 问卷步骤（7 步）
+
+| 步骤 | 内容 | 字段 | 是否必填 |
+|------|------|------|----------|
+| 1 | 兴趣爱好（多选） | `interests` | 是（至少选 1 个） |
+| 2 | 社交能量来源 | `socialEnergy` | 是 |
+| 3 | 决策方式 | `decisionMaking` | 是 |
+| 4 | 生活节奏 | `lifeRhythm` | 是 |
+| 5 | 年龄要求 | `ageMin` / `ageMax` / `ageUnlimited` | 是 |
+| 6 | 关系距离 | `distancePreference` | 是 |
+| 7 | 额外要求（选填） | `additionalRequirements` | 否 |
 
 ## API接口
 
 ### 提交问卷数据 (POST)
+
+最终提交使用 POST，后端会将 `matching_questionnaire_completed` 设为 `TRUE`。
+
 ```javascript
-// 提交完整的问卷数据
 await submitQuestionnaire(questionnaireData)
 
-// 数据格式示例
+// 数据格式
 {
   userId: 123,
-  interests: ['reading', 'travel'],
-  socialEnergy: 'extroverted',
-  decisionMaking: 'careful',
-  lifeRhythm: 'regular',
-  communicationStyle: 'direct',
-  preferredSocialStyle: 'small_groups',
-  preferredLifestyle: 'balanced',
-  preferredInterests: 'intellectual',
-  relationshipQualities: ['trustworthy', 'supportive'],
-  preferredRelationshipMode: 'gradual',
-  communicationExpectation: 'frequent',
-  ageRequirement: {
-    unlimited: false,
-    minAge: 25,
-    maxAge: 35
-  },
-  distanceRequirement: 'same_city_priority',
-  mustHaveQualities: ['age_range', 'distance'],
-  priorityQualities: ['interest_overlap', 'personality_compatibility'],
+  interests: ['reading', 'travel', 'fitness'],
+  socialEnergy: 'extroverted',       // extroverted | introverted | ambivert
+  decisionMaking: 'rational',        // rational | emotional | balanced
+  lifeRhythm: 'planned',             // planned | spontaneous | flexible
+  ageMin: 25,
+  ageMax: 35,
+  ageUnlimited: false,
+  distancePreference: 'same_city',   // same_city | same_city_or_remote | unlimited
   additionalRequirements: '希望找一个喜欢旅行的伴侣'
 }
 ```
 
-### 获取问卷数据 (GET)
-```javascript
-// 获取当前用户的数据
-const data = await getQuestionnaire()
+### 更新问卷数据 (PUT)
 
-// 获取指定用户的数据
-const data = await getQuestionnaire(userId)
+自动保存草稿使用 PUT，**不会**标记 `matching_questionnaire_completed`。
+
+```javascript
+await updateQuestionnaire(questionnaireData)
 ```
 
-### 更新问卷数据 (PUT)
+### 获取问卷数据 (GET)
+
 ```javascript
-// 用于自动保存，更新部分数据
-await updateQuestionnaire(questionnaireData)
+// 获取当前登录用户的数据
+const data = await getQuestionnaire()
+
+// 返回字段
+{
+  userId: 123,
+  ageMin: 25,
+  ageMax: 35,
+  ageUnlimited: false,
+  distancePreference: 'same_city',
+  additionalRequirements: '...',
+  interests: ['reading', 'travel'],
+  socialEnergy: 'extroverted',
+  decisionMaking: 'rational',
+  lifeRhythm: 'planned'
+}
+```
+
+### 获取公开问卷数据
+
+```javascript
+// 获取指定用户的公开问卷（用于匹配页面展示兴趣和性格）
+const data = await getPublicQuestionnaire(userId)
 ```
 
 ## 前端实现
 
-### 自动保存机制
+### 表单数据结构
+
 ```javascript
-// 监控表单数据变化
+formData: {
+  interests: [],               // 兴趣爱好（多选，字符串编码数组）
+  socialEnergy: '',            // 社交能量来源
+  decisionMaking: '',          // 决策方式
+  lifeRhythm: '',              // 生活节奏
+  ageRequirement: {            // 年龄要求
+    unlimited: false,
+    minAge: 18,
+    maxAge: 30
+  },
+  distanceRequirement: '',     // 距离要求（前端编码）
+  additionalRequirements: ''   // 额外要求（选填）
+}
+```
+
+### 距离偏好编码映射
+
+前端使用以下编码，提交时映射为后端编码：
+
+| 前端编码 | 后端编码 | 含义 |
+|----------|----------|------|
+| `same_city_priority` | `same_city` | 同城优先 |
+| `both_ok` | `same_city_or_remote` | 同城/异地均可 |
+| `no_limit` | `unlimited` | 不限距离 |
+
+### 自动保存机制
+
+```javascript
 watch: {
   formData: {
     handler() {
@@ -81,41 +133,46 @@ watch: {
         this.debounceAutoSave() // 5秒后执行自动保存
       }
     },
-    deep: true
+    deep: true,
+    immediate: false
   }
-}
-
-// 检查是否有数据需要保存
-hasPartialData() {
-  const data = this.formData
-  return (
-    data.interests.length > 0 ||
-    data.socialEnergy ||
-    // ... 其他字段检查
-  )
 }
 ```
 
 ### 数据加载逻辑
+
 ```javascript
 async loadExistingQuestionnaire() {
   try {
-    const authStore = useAuthStore()
-    const userId = authStore.userId
-    
-    if (!userId) return
-    
-    // 获取已有数据
-    const existingData = await getQuestionnaire(userId)
-    
-    // 填充表单数据
+    const existingData = await getQuestionnaire()
+
     if (existingData) {
       this.formData.interests = existingData.interests || []
       this.formData.socialEnergy = existingData.socialEnergy || ''
-      // ... 其他字段映射
+      this.formData.decisionMaking = existingData.decisionMaking || ''
+      this.formData.lifeRhythm = existingData.lifeRhythm || ''
+
+      // 年龄要求
+      this.formData.ageRequirement = {
+        unlimited: !!existingData.ageUnlimited,
+        minAge: existingData.ageMin ?? 18,
+        maxAge: existingData.ageMax ?? 30
+      }
+
+      // 距离偏好：后端返回 distancePreference，需反向映射回前端编码
+      const reverseDistanceMap = {
+        same_city: 'same_city_priority',
+        same_city_or_remote: 'both_ok',
+        unlimited: 'no_limit'
+      }
+      this.formData.distanceRequirement =
+        reverseDistanceMap[existingData.distancePreference] || ''
+
+      // 额外要求
+      this.formData.additionalRequirements = existingData.additionalRequirements || ''
     }
   } catch (error) {
-    // 404错误表示用户还没有填写过问卷，这是正常的
+    // 404 表示用户还没有填写过问卷，这是正常的
     if (error.response?.status !== 404) {
       console.warn('获取问卷数据失败:', error)
     }
@@ -123,45 +180,23 @@ async loadExistingQuestionnaire() {
 }
 ```
 
-## 数据结构
-
-### 表单数据结构
-```javascript
-formData: {
-  interests: [],                    // 兴趣爱好（多选）
-  socialEnergy: '',                 // 社交能量
-  decisionMaking: '',               // 决策方式
-  lifeRhythm: '',                   // 生活节奏
-  communicationStyle: '',           // 沟通风格
-  preferredSocialStyle: '',         // 偏好社交方式
-  preferredLifestyle: '',           // 偏好生活方式
-  preferredInterests: '',           // 偏好兴趣类型
-  relationshipQualities: [],        // 关系品质（多选）
-  preferredRelationshipMode: '',    // 偏好关系模式
-  communicationExpectation: '',     // 沟通期望
-  ageRequirement: {                 // 年龄要求
-    unlimited: false,
-    minAge: 18,
-    maxAge: 30
-  },
-  distanceRequirement: '',          // 距离要求
-  mustHaveQualities: [],           // 必须满足的维度（1-2个）
-  priorityQualities: [],           // 优先考虑的维度（1-3个）
-  additionalRequirements: ''       // 额外要求
-}
-```
-
 ## 验证规则
 
-### 第12页（必须维度）
-- 必须选择1-2个维度
-- 支持"无要求"选项
-- 选择"无要求"会清除其他选择
+| 步骤 | 校验条件 |
+|------|----------|
+| 1 | `interests.length > 0` |
+| 2 | `socialEnergy !== ''` |
+| 3 | `decisionMaking !== ''` |
+| 4 | `lifeRhythm !== ''` |
+| 5 | `ageUnlimited === true` 或 `minAge <= maxAge` |
+| 6 | `distanceRequirement !== ''` |
+| 7 | 无（选填） |
 
-### 第13页（优先维度）
-- 必须选择1-3个维度
-- 支持"无要求"选项
-- 选择"无要求"会清除其他选择
+## 访问控制
+
+- **MatchPage**：所有用户均可浏览推荐列表（冷启动推荐）
+- **喜欢（红心）**：需 `matching_questionnaire_completed = TRUE`，否则后端返回 403
+- **发起聊天**：需 `matching_questionnaire_completed = TRUE`，否则后端返回 403
 
 ## 错误处理
 
@@ -169,7 +204,7 @@ formData: {
 1. **网络错误**：显示重试提示
 2. **认证错误**：跳转到登录页面
 3. **验证错误**：显示具体错误信息
-4. **服务器错误**：显示通用错误提示
+4. **403 错误**：提示用户先完成问卷
 
 ### 自动保存失败
 - 自动保存失败不会显示错误给用户
@@ -179,28 +214,10 @@ formData: {
 ## 性能优化
 
 ### 防抖机制
-- 5秒延迟的自动保存
+- 5 秒延迟的自动保存
 - 清除之前的定时器避免重复保存
 - 只在有实际数据变化时保存
 
 ### 数据验证
 - 前端验证减少无效请求
 - 分步验证避免一次性处理大量数据
-- 智能的数据结构检测
-
-## 部署注意事项
-
-### 后端API要求
-- 支持RESTful风格的API
-- 需要处理认证和授权
-- 需要数据验证和错误处理
-
-### 数据库设计
-- 用户ID作为外键
-- 支持部分数据更新
-- 需要创建时间戳和更新时间戳
-
-### 安全考虑
-- 用户只能访问自己的问卷数据
-- 需要token验证
-- 敏感数据需要加密存储

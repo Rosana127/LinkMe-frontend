@@ -5,6 +5,21 @@
       <div class="bg-white/40 border border-gray-300/50 rounded-xl p-8 mb-6">
         <h3 class="text-xl mb-6">今日推荐</h3>
         
+        <!-- 冷启动提示：未填写问卷时显示 -->
+        <div v-if="!hasQuestionnaire && !checkingQuestionnaire" class="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-lg flex items-start gap-3">
+          <span class="iconify text-2xl text-amber-500 flex-shrink-0 mt-0.5" data-icon="mdi:lightbulb-outline" data-inline="false"></span>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-amber-800">你还未完成匹配问卷</p>
+            <p class="text-xs text-amber-700 mt-1">现在先根据同城和年龄为你推荐，完成问卷后推荐会更精准，还能喜欢和对方聊天。</p>
+            <button
+              @click="goToQuestionnaire"
+              class="mt-3 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all"
+            >
+              去填写问卷
+            </button>
+          </div>
+        </div>
+
         <!-- 加载状态 -->
         <div v-if="isLoading" class="text-center py-12">
           <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-4"></div>
@@ -14,8 +29,8 @@
         <!-- 空状态 -->
         <div v-else-if="matches.length === 0" class="text-center py-12">
           <span class="iconify text-4xl text-gray-400 mb-4 block" data-icon="mdi:account-search" data-inline="false"></span>
-          <p class="text-gray-600">暂无填写过问卷的用户</p>
-          <p class="text-sm text-gray-500 mt-2">请稍后再试或检查网络连接</p>
+          <p class="text-gray-600">暂无推荐用户</p>
+          <p class="text-sm text-gray-500 mt-2">目前还没有已完成问卷的用户，请稍后再试</p>
         </div>
         
         <!-- 用户卡片 -->
@@ -36,7 +51,13 @@
               <template v-if="getGenderText(currentMatch?.gender)">
                 {{ getGenderText(currentMatch?.gender) }}
               </template>
-              <template v-if="getGenderText(currentMatch?.gender) && currentMatch?.location && currentMatch.location !== ''">
+              <template v-if="getGenderText(currentMatch?.gender) && currentMatch?.age">
+                <span class="mx-2">·</span>
+              </template>
+              <template v-if="currentMatch?.age">
+                {{ currentMatch.age }}岁
+              </template>
+              <template v-if="currentMatch?.age && currentMatch?.location && currentMatch.location !== ''">
                 <span class="mx-2">·</span>
               </template>
               <template v-if="currentMatch?.location && currentMatch.location !== ''">
@@ -338,8 +359,7 @@ const loadCurrentPersonalityData = async () => {
   const existingPersonality = {
     socialEnergy: currentMatch.value.socialEnergy,
     decisionMaking: currentMatch.value.decisionMaking,
-    lifeRhythm: currentMatch.value.lifeRhythm,
-    communicationStyle: currentMatch.value.communicationStyle
+    lifeRhythm: currentMatch.value.lifeRhythm
   }
   
   const filteredExisting = Object.fromEntries(
@@ -371,8 +391,7 @@ const loadCurrentPersonalityData = async () => {
     const personality = {
       socialEnergy: qData.socialEnergy,
       decisionMaking: qData.decisionMaking,
-      lifeRhythm: qData.lifeRhythm,
-      communicationStyle: qData.communicationStyle
+      lifeRhythm: qData.lifeRhythm
     }
     
     // 过滤掉空值
@@ -389,7 +408,6 @@ const loadCurrentPersonalityData = async () => {
         matches.value[matchIndex].socialEnergy = qData.socialEnergy || null
         matches.value[matchIndex].decisionMaking = qData.decisionMaking || null
         matches.value[matchIndex].lifeRhythm = qData.lifeRhythm || null
-        matches.value[matchIndex].communicationStyle = qData.communicationStyle || null
       }
       
       console.log('✅ 从API加载 Personality 数据成功:', currentPersonalityData.value)
@@ -441,7 +459,7 @@ const nextMatch = () => {
 const likeUser = async () => {
   // 检查是否填写过问卷
   if (!hasQuestionnaire.value) {
-    showTip('请您完成问卷调查')
+    showTip('请先完成匹配问卷后再喜欢')
     return
   }
   
@@ -514,7 +532,7 @@ const likeUser = async () => {
 const startChat = () => {
   // 检查是否填写过问卷
   if (!hasQuestionnaire.value) {
-    showTip('请您完成问卷调查')
+    showTip('请先完成匹配问卷后再发起聊天')
     return
   }
   
@@ -580,8 +598,7 @@ const checkUserQuestionnaire = async () => {
     const hasData = qData.interests?.length > 0 || 
                     qData.socialEnergy || 
                     qData.decisionMaking || 
-                    qData.lifeRhythm || 
-                    qData.communicationStyle
+                    qData.lifeRhythm
     
     hasQuestionnaire.value = !!hasData
     console.log('用户问卷检查结果:', hasQuestionnaire.value, qData)
@@ -689,14 +706,7 @@ const PERSONALITY_LABELS = {
   lifeRhythm: {
     planned: '计划型',
     spontaneous: '随性型',
-    flexible: '灵活型'
-  },
-  communicationStyle: {
-    direct: '直接型',
-    tactful: '委婉型',
-    humorous: '幽默型',
-    listening: '倾听型',
-    quiet: '安静型'
+    flexible: '弹性型'
   }
 }
 
@@ -831,8 +841,7 @@ const formatUsersData = (usersData) => {
     // Personality 字段
     socialEnergy: user.socialEnergy || null,
     decisionMaking: user.decisionMaking || null,
-    lifeRhythm: user.lifeRhythm || null,
-    communicationStyle: user.communicationStyle || null
+    lifeRhythm: user.lifeRhythm || null
   }))
 }
 
@@ -901,9 +910,8 @@ const loadUserQuestionnaires = async () => {
         if (qData.socialEnergy) matches.value[matchIndex].socialEnergy = qData.socialEnergy
         if (qData.decisionMaking) matches.value[matchIndex].decisionMaking = qData.decisionMaking
         if (qData.lifeRhythm) matches.value[matchIndex].lifeRhythm = qData.lifeRhythm
-        if (qData.communicationStyle) matches.value[matchIndex].communicationStyle = qData.communicationStyle
         
-        if (qData.socialEnergy || qData.decisionMaking || qData.lifeRhythm || qData.communicationStyle) {
+        if (qData.socialEnergy || qData.decisionMaking || qData.lifeRhythm) {
           console.log(`✅ 用户 ${userId} 的 Personality 数据已加载`)
         }
       } else {
