@@ -908,16 +908,14 @@ export default {
 
         console.log('准备提交的问卷数据:', JSON.stringify(questionnaireData, null, 2))
 
-        // 先尝试PUT更新，如果失败则使用POST创建
+        // 先用PUT保存数据，再用POST标记问卷完成
         try {
           await updateQuestionnaire(questionnaireData)
         } catch (updateError) {
-          if (updateError.status === 404 || updateError.response?.status === 404) {
-            await submitQuestionnaire(questionnaireData)
-          } else {
-            throw updateError
-          }
+          console.warn('PUT更新问卷失败，尝试POST创建:', updateError)
         }
+        // POST会标记 matching_questionnaire_completed = TRUE
+        await submitQuestionnaire(questionnaireData)
 
         this.saveMessage = '问卷提交成功！'
         setTimeout(() => {
