@@ -1,4 +1,4 @@
-﻿<template>
+﻿﻿<template>
   <div class="chat-page-container">
     <!-- 聊天列表和活动通知 -->
     <div class="grid grid-cols-3 gap-6 h-full">

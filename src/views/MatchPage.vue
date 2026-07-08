@@ -154,6 +154,15 @@
         <h4 class="mb-4">专属匹配问卷</h4>
         <p class="text-sm text-gray-600 mb-4">完善你的个人资料，获得更精准的匹配推荐</p>
         <button 
+          v-if="hasQuestionnaire"
+          @click="goToQuestionnaire" 
+          class="questionnaire-btn-edit w-full bg-purple-100 text-purple-700 border border-purple-200 py-4 px-4 rounded-xl hover:bg-purple-200 hover:border-purple-300 transition-all duration-300 flex items-center justify-center"
+        >
+          <span class="iconify mr-3 text-3xl" data-icon="mdi:file-document-edit" data-inline="false"></span>
+          <span class="text-lg">修改问卷</span>
+        </button>
+        <button 
+          v-else
           @click="goToQuestionnaire" 
           class="questionnaire-btn w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-4 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105"
         >
@@ -782,7 +791,7 @@ const INTEREST_LABELS = {
   cycling: '骑行',
   fishing: '钓鱼',
   yoga: '瑜伽',
-  camping: '¶Ӫ',
+  camping: '露营',
   martial_arts: '武术',
   mountaineering: '登山',
   climbing: '攀岩',
@@ -1099,6 +1108,15 @@ onMounted(async () => {
   animation: pulse 2s infinite;
 }
 
+.questionnaire-btn-edit {
+  position: relative;
+  overflow: hidden;
+}
+
+.questionnaire-btn-edit .iconify {
+  animation: pulse 2s infinite;
+}
+
 @keyframes pulse {
   0%, 100% {
     transform: scale(1);
@@ -1287,16 +1305,19 @@ onMounted(async () => {
 
   /* 问卷按钮优化 */
   /* Optimize questionnaire button */
-  .questionnaire-btn {
+  .questionnaire-btn,
+  .questionnaire-btn-edit {
     padding: 14px 12px;
   }
 
-  .questionnaire-btn .iconify {
+  .questionnaire-btn .iconify,
+  .questionnaire-btn-edit .iconify {
     font-size: 24px;
     margin-right: 8px;
   }
 
-  .questionnaire-btn span.text-lg {
+  .questionnaire-btn span.text-lg,
+  .questionnaire-btn-edit span.text-lg {
     font-size: 16px;
   }
 

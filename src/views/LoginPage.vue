@@ -43,14 +43,30 @@
 
           <div class="form-group">
             <label for="password" class="form-label">密码</label>
-            <input
-              id="password"
-              v-model="form.password"
-              type="password"
-              class="form-input"
-              placeholder="请输入密码"
-              required
-            />
+            <div class="password-input-wrap">
+              <input
+                id="password"
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                class="form-input"
+                placeholder="请输入密码"
+                autocomplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+                :title="showPassword ? '隐藏密码' : '显示密码'"
+                @click="showPassword = !showPassword"
+              >
+                <span
+                  class="iconify"
+                  :data-icon="showPassword ? 'mdi:eye-off-outline' : 'mdi:eye-outline'"
+                  data-inline="false"
+                ></span>
+              </button>
+            </div>
           </div>
 
           <div v-if="errorMessage" class="error-message">
@@ -85,6 +101,7 @@ const form = ref({
   password: ''
 })
 
+const showPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
 
@@ -102,7 +119,7 @@ const handleLogin = async () => {
       const role = authStore.user?.role
 
       if (role === 'admin' || role === 'moderator') {
-        router.push({ name: 'Admin' })
+        router.push({ name: 'admin' })
       } else {
         const redirect = route.query.redirect
         router.push(typeof redirect === 'string' && redirect ? redirect : '/')
@@ -301,6 +318,48 @@ const goBack = () => {
   color: #111827;
   background: #fff;
   transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.password-input-wrap {
+  position: relative;
+}
+
+.password-input-wrap .form-input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.password-input-wrap .form-input::-ms-reveal,
+.password-input-wrap .form-input::-ms-clear {
+  display: none;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+
+.password-toggle:hover {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.password-toggle .iconify {
+  font-size: 20px;
 }
 
 .form-input:focus {

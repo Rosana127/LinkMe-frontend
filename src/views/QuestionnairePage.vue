@@ -23,26 +23,17 @@
 
       <!-- Error Message -->
       <div v-if="errorMessage" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-        <div class="flex items-center">
-          <span class="iconify mr-2 text-red-600" data-icon="mdi:alert-circle" data-inline="false"></span>
-          <span class="text-red-800 text-sm">{{ errorMessage }}</span>
-        </div>
+        <span class="text-red-800 text-sm">{{ errorMessage }}</span>
       </div>
 
       <!-- Save Message -->
       <div v-if="saveMessage" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-        <div class="flex items-center">
-          <span class="iconify mr-2 text-green-600" data-icon="mdi:check-circle" data-inline="false"></span>
-          <span class="text-green-800 text-sm">{{ saveMessage }}</span>
-        </div>
+        <span class="text-green-800 text-sm">{{ saveMessage }}</span>
       </div>
 
       <!-- Auto Save Status -->
       <div v-if="isAutoSaving" class="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-        <div class="flex items-center">
-          <span class="iconify mr-2 text-blue-600 animate-spin" data-icon="mdi:loading" data-inline="false"></span>
-          <span class="text-blue-800 text-sm">正在自动保存...</span>
-        </div>
+        <span class="text-blue-800 text-sm">正在自动保存...</span>
       </div>
 
       <!-- Form -->
@@ -50,155 +41,65 @@
         <!-- Step 1: Interests Survey -->
         <div v-if="currentStep === 1">
           <h2 class="text-xl font-bold mb-6">爱好问卷</h2>
-          <p class="text-gray-600 mb-6">选择你感兴趣的爱好（可多选）</p>
+          <p class="text-gray-600 mb-2">选择你感兴趣的爱好（可多选）</p>
+          <p class="text-sm text-purple-600 mb-6">已选择 {{ formData.interests.length }} 项</p>
 
-          <div class="space-y-8">
-            <!-- 艺术文娱类 -->
-            <div>
-              <h3 class="text-lg font-semibold mb-4">艺术文娱类</h3>
-              <div class="grid grid-cols-2 gap-3">
-                <div
-                  v-for="interest in artEntertainment"
-                  :key="interest.id"
-                  @click="toggleInterest(interest.id)"
-                  :class="[
-                    'flex items-center p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50',
-                    formData.interests.includes(interest.id) ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'
-                  ]"
-                >
-                  <div class="w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center transition-all duration-200"
-                       :class="formData.interests.includes(interest.id)
-                         ? 'border-purple-500 bg-purple-500'
-                         : 'border-gray-300 bg-white'">
-                    <div v-if="formData.interests.includes(interest.id)"
-                         class="w-2 h-2 rounded-full bg-white"></div>
+          <div v-if="hobbiesLoading" class="text-sm text-gray-500">正在加载爱好选项...</div>
+          <div v-else-if="hobbiesLoadError" class="text-sm text-red-600">{{ hobbiesLoadError }}</div>
+          <div v-else-if="interestCategories.length === 0" class="text-sm text-gray-500">暂无可选爱好，请确认已执行 deploy.sql 初始化数据。</div>
+          <div v-else class="space-y-3">
+            <div
+              v-for="category in interestCategories"
+              :key="category.categoryId"
+              class="interest-category border-2 rounded-xl overflow-hidden transition-colors"
+              :class="isCategoryExpanded(category.categoryId) ? 'border-purple-200 bg-purple-50/30' : 'border-gray-200 bg-white'"
+            >
+              <button
+                type="button"
+                class="interest-category-header w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
+                @click="toggleCategory(category.categoryId)"
+              >
+                <div class="min-w-0">
+                  <div class="font-semibold text-gray-900">{{ category.name }}</div>
+                  <div class="text-xs text-gray-500 mt-0.5">
+                    {{ category.hobbies.length }} 个选项
+                    <span v-if="getCategorySelectedCount(category) > 0">
+                      · 已选 {{ getCategorySelectedCount(category) }} 项
+                    </span>
                   </div>
-                  <span class="text-sm font-medium">{{ interest.name }}</span>
                 </div>
-              </div>
-            </div>
 
-            <!-- 学习知识类 -->
-            <div>
-              <h3 class="text-lg font-semibold mb-4">学习知识类</h3>
-              <div class="grid grid-cols-2 gap-3">
-                <div
-                  v-for="interest in learningKnowledge"
-                  :key="interest.id"
-                  @click="toggleInterest(interest.id)"
-                  :class="[
-                    'flex items-center p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50',
-                    formData.interests.includes(interest.id) ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'
-                  ]"
-                >
-                  <div class="w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center transition-all duration-200"
-                       :class="formData.interests.includes(interest.id)
-                         ? 'border-purple-500 bg-purple-500'
-                         : 'border-gray-300 bg-white'">
-                    <div v-if="formData.interests.includes(interest.id)"
-                         class="w-2 h-2 rounded-full bg-white"></div>
-                  </div>
-                  <span class="text-sm font-medium">{{ interest.name }}</span>
+                <div class="flex items-center gap-2 shrink-0 ml-3">
+                  <span
+                    v-if="getCategorySelectedCount(category) > 0"
+                    class="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700"
+                  >
+                    {{ getCategorySelectedCount(category) }}
+                  </span>
+                  <span class="text-xs text-gray-500">
+                    {{ isCategoryExpanded(category.categoryId) ? '收起' : '展开' }}
+                  </span>
                 </div>
-              </div>
-            </div>
+              </button>
 
-            <!-- 运动户外类 -->
-            <div>
-              <h3 class="text-lg font-semibold mb-4">运动户外类</h3>
-              <div class="grid grid-cols-2 gap-3">
-                <div
-                  v-for="interest in sportsOutdoors"
-                  :key="interest.id"
-                  @click="toggleInterest(interest.id)"
-                  :class="[
-                    'flex items-center p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50',
-                    formData.interests.includes(interest.id) ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'
-                  ]"
-                >
-                  <div class="w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center transition-all duration-200"
-                       :class="formData.interests.includes(interest.id)
-                         ? 'border-purple-500 bg-purple-500'
-                         : 'border-gray-300 bg-white'">
-                    <div v-if="formData.interests.includes(interest.id)"
-                         class="w-2 h-2 rounded-full bg-white"></div>
+              <div
+                v-show="isCategoryExpanded(category.categoryId)"
+                class="interest-category-body px-4 pb-4 border-t border-gray-100"
+              >
+                <div class="grid grid-cols-2 gap-3 pt-4">
+                  <div
+                    v-for="hobby in category.hobbies"
+                    :key="hobby.hobbyId"
+                    @click="toggleInterest(hobby.name)"
+                    :class="[
+                      'p-3 rounded-lg border cursor-pointer transition-all duration-200 text-sm font-medium text-center',
+                      formData.interests.includes(hobby.name)
+                        ? 'bg-purple-50 border-purple-500 text-purple-700'
+                        : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-white'
+                    ]"
+                  >
+                    {{ hobby.name }}
                   </div>
-                  <span class="text-sm font-medium">{{ interest.name }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- 休闲娱乐类 -->
-            <div>
-              <h3 class="text-lg font-semibold mb-4">休闲娱乐类</h3>
-              <div class="grid grid-cols-2 gap-3">
-                <div
-                  v-for="interest in leisureEntertainment"
-                  :key="interest.id"
-                  @click="toggleInterest(interest.id)"
-                  :class="[
-                    'flex items-center p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50',
-                    formData.interests.includes(interest.id) ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'
-                  ]"
-                >
-                  <div class="w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center transition-all duration-200"
-                       :class="formData.interests.includes(interest.id)
-                         ? 'border-purple-500 bg-purple-500'
-                         : 'border-gray-300 bg-white'">
-                    <div v-if="formData.interests.includes(interest.id)"
-                         class="w-2 h-2 rounded-full bg-white"></div>
-                  </div>
-                  <span class="text-sm font-medium">{{ interest.name }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- 生活技能类 -->
-            <div>
-              <h3 class="text-lg font-semibold mb-4">生活技能类</h3>
-              <div class="grid grid-cols-2 gap-3">
-                <div
-                  v-for="interest in lifeSkills"
-                  :key="interest.id"
-                  @click="toggleInterest(interest.id)"
-                  :class="[
-                    'flex items-center p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50',
-                    formData.interests.includes(interest.id) ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'
-                  ]"
-                >
-                  <div class="w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center transition-all duration-200"
-                       :class="formData.interests.includes(interest.id)
-                         ? 'border-purple-500 bg-purple-500'
-                         : 'border-gray-300 bg-white'">
-                    <div v-if="formData.interests.includes(interest.id)"
-                         class="w-2 h-2 rounded-full bg-white"></div>
-                  </div>
-                  <span class="text-sm font-medium">{{ interest.name }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- 社交体验类 -->
-            <div>
-              <h3 class="text-lg font-semibold mb-4">社交体验类</h3>
-              <div class="grid grid-cols-2 gap-3">
-                <div
-                  v-for="interest in socialExperience"
-                  :key="interest.id"
-                  @click="toggleInterest(interest.id)"
-                  :class="[
-                    'flex items-center p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50',
-                    formData.interests.includes(interest.id) ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'
-                  ]"
-                >
-                  <div class="w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center transition-all duration-200"
-                       :class="formData.interests.includes(interest.id)
-                         ? 'border-purple-500 bg-purple-500'
-                         : 'border-gray-300 bg-white'">
-                    <div v-if="formData.interests.includes(interest.id)"
-                         class="w-2 h-2 rounded-full bg-white"></div>
-                  </div>
-                  <span class="text-sm font-medium">{{ interest.name }}</span>
                 </div>
               </div>
             </div>
@@ -490,17 +391,17 @@
               />
               <div
                 v-else
-                class="w-32 h-32 rounded-full bg-gray-100 border-4 border-gray-200 flex items-center justify-center"
+                class="w-32 h-32 rounded-full bg-gray-100 border-4 border-gray-200 flex items-center justify-center text-sm text-gray-500 text-center px-3"
               >
-                <span class="iconify text-5xl text-gray-400" data-icon="mdi:camera-plus" data-inline="false"></span>
+                暂无头像
               </div>
               <button
                 v-if="avatarPreview"
                 @click="removeAvatar"
-                class="absolute -top-1 -right-1 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow"
+                class="absolute -top-1 -right-1 px-2 py-1 text-xs bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow"
                 title="移除头像"
               >
-                <span class="iconify text-sm" data-icon="mdi:close" data-inline="false"></span>
+                移除
               </button>
             </div>
 
@@ -528,11 +429,6 @@
         <!-- Step 9: 完成 -->
         <div v-if="currentStep === 9">
           <div class="text-center py-8">
-            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-              </svg>
-            </div>
             <h2 class="text-2xl font-bold text-gray-900 mb-2">问卷完成！</h2>
             <p class="text-gray-600 mb-6">感谢您填写问卷，我们会根据您的信息为您提供更好的匹配推荐</p>
 
@@ -564,13 +460,7 @@
           class="px-6 py-3 rounded-lg transition-colors font-medium border"
           :style="canProceed && !isSaving ? 'background-color: #2563eb; color: white; border-color: #2563eb; cursor: pointer;' : 'background-color: #f3f4f6; color: #1f2937; border-color: #9ca3af; cursor: not-allowed;'"
         >
-          <span v-if="isSaving" class="flex items-center">
-            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            保存中...
-          </span>
+          <span v-if="isSaving">保存中...</span>
           <span v-else>{{ currentStep === totalSteps - 1 ? '完成问卷' : '下一步' }}</span>
         </button>
       </div>
@@ -579,7 +469,7 @@
 </template>
 
 <script>
-import { submitQuestionnaire, getQuestionnaire, updateQuestionnaire } from '@/api/questionnaire'
+import { submitQuestionnaire, getQuestionnaire, updateQuestionnaire, getHobbyOptions } from '@/api/questionnaire'
 import { useAuthStore } from '@/stores/auth'
 
 export default {
@@ -610,78 +500,10 @@ export default {
       },
       avatarFile: null,
       avatarPreview: null,
-      // 爱好数据
-      artEntertainment: [
-        { id: 'art', name: '绘画' },
-        { id: 'photography', name: '摄影' },
-        { id: 'calligraphy', name: '书法' },
-        { id: 'writing', name: '写作' },
-        { id: 'singing', name: '歌唱' },
-        { id: 'dance', name: '舞蹈' },
-        { id: 'theater', name: '戏剧' },
-        { id: 'instrument', name: '乐器演奏' },
-        { id: 'graphic_design', name: '平面设计' },
-        { id: 'video_editing', name: '视频剪辑' }
-      ],
-      learningKnowledge: [
-        { id: 'reading', name: '阅读' },
-        { id: 'programming', name: '编程' },
-        { id: 'teaching', name: '教学' },
-        { id: 'psychology', name: '心理学' },
-        { id: 'language_learning', name: '语言学习' },
-        { id: 'philosophy', name: '哲学思考' },
-        { id: 'history_research', name: '历史研究' },
-        { id: 'investment', name: '投资理财' },
-        { id: 'public_speaking', name: '公开演讲' },
-        { id: 'entrepreneurship', name: '创业项目' }
-      ],
-      sportsOutdoors: [
-        { id: 'running', name: '跑步' },
-        { id: 'fitness', name: '健身' },
-        { id: 'swimming', name: '游泳' },
-        { id: 'cycling', name: '骑行' },
-        { id: 'fishing', name: '钓鱼' },
-        { id: 'yoga', name: '瑜伽' },
-        { id: 'camping', name: '¶Ӫ' },
-        { id: 'martial_arts', name: '武术' },
-        { id: 'mountaineering', name: '登山' },
-        { id: 'climbing', name: '攀岩' },
-        { id: 'frisbee', name: '飞盘' },
-        { id: 'team_sports', name: '球类运动' }
-      ],
-      leisureEntertainment: [
-        { id: 'board_games', name: '桌游' },
-        { id: 'card_games', name: '棋牌' },
-        { id: 'magic', name: '魔术' },
-        { id: 'collecting', name: '收藏' },
-        { id: 'tv_shows', name: '追剧' },
-        { id: 'movies', name: '看电影' },
-        { id: 'music', name: '听音乐' },
-        { id: 'script_killing', name: '剧本杀' },
-        { id: 'escape_room', name: '密室逃脱' },
-        { id: 'gaming', name: '电子游戏' }
-      ],
-      lifeSkills: [
-        { id: 'cooking_baking', name: '烹饪/烘焙' },
-        { id: 'coffee_tea_mixology', name: '咖啡/茶艺/调酒' },
-        { id: 'handicraft_diy', name: '手工 DIY' },
-        { id: 'sewing', name: '缝纫' },
-        { id: 'home_decoration', name: '家居装饰' },
-        { id: 'organizing', name: '收纳整理' },
-        { id: 'floristry_gardening', name: '花艺绿植' }
-      ],
-      socialExperience: [
-        { id: 'travel', name: '旅行' },
-        { id: 'bird_watching', name: '观鸟' },
-        { id: 'music_festival', name: '音乐节' },
-        { id: 'concert', name: '演唱会' },
-        { id: 'restaurant_hopping', name: '探店打卡' },
-        { id: 'exhibition', name: '展览打卡' },
-        { id: 'astronomy', name: '天文观测' },
-        { id: 'volunteering', name: '公益志愿' },
-        { id: 'petting', name: '撸猫撸狗' },
-        { id: 'city_walk', name: 'city walk' }
-      ],
+      expandedCategoryIds: [],
+      interestCategories: [],
+      hobbiesLoading: false,
+      hobbiesLoadError: '',
       ageOptions: Array.from({length: 82}, (_, i) => i + 18) // 18-99岁
     }
   },
@@ -689,7 +511,7 @@ export default {
     canProceed() {
       switch (this.currentStep) {
         case 1:
-          return this.formData.interests.length > 0
+          return !this.hobbiesLoading && !this.hobbiesLoadError && this.formData.interests.length > 0
         case 2:
           return this.formData.socialEnergy !== ''
         case 3:
@@ -748,12 +570,63 @@ export default {
       }
       return payload
     },
-    toggleInterest(interestId) {
-      const index = this.formData.interests.indexOf(interestId)
+    toggleInterest(interestName) {
+      const index = this.formData.interests.indexOf(interestName)
       if (index > -1) {
         this.formData.interests.splice(index, 1)
       } else {
-        this.formData.interests.push(interestId)
+        this.formData.interests.push(interestName)
+      }
+    },
+    toggleCategory(categoryId) {
+      const index = this.expandedCategoryIds.indexOf(categoryId)
+      if (index > -1) {
+        this.expandedCategoryIds.splice(index, 1)
+      } else {
+        this.expandedCategoryIds.push(categoryId)
+      }
+    },
+    isCategoryExpanded(categoryId) {
+      return this.expandedCategoryIds.includes(categoryId)
+    },
+    getCategorySelectedCount(category) {
+      return (category.hobbies || []).filter((hobby) => this.formData.interests.includes(hobby.name)).length
+    },
+    normalizeInterestValues(values) {
+      const codeToName = {}
+      this.interestCategories.forEach((category) => {
+        ;(category.hobbies || []).forEach((hobby) => {
+          if (hobby.code) {
+            codeToName[hobby.code] = hobby.name
+          }
+        })
+      })
+      return values
+        .map((value) => codeToName[value] || value)
+        .filter((value) => typeof value === 'string' && value.trim())
+    },
+    async loadHobbyOptions() {
+      this.hobbiesLoading = true
+      this.hobbiesLoadError = ''
+      try {
+        const data = await getHobbyOptions()
+        this.interestCategories = Array.isArray(data) ? data : []
+      } catch (error) {
+        this.interestCategories = []
+        this.hobbiesLoadError = error?.message || '加载爱好选项失败'
+      } finally {
+        this.hobbiesLoading = false
+      }
+    },
+    syncExpandedCategoriesFromSelection() {
+      const expanded = this.interestCategories
+        .filter((category) => this.getCategorySelectedCount(category) > 0)
+        .map((category) => category.categoryId)
+
+      if (expanded.length > 0) {
+        this.expandedCategoryIds = expanded
+      } else if (this.interestCategories.length > 0) {
+        this.expandedCategoryIds = [this.interestCategories[0].categoryId]
       }
     },
     handleAvatarUpload(event) {
@@ -998,7 +871,8 @@ export default {
         if (existingData && typeof existingData === 'object') {
           // 兴趣爱好
           if (Array.isArray(existingData.interests)) {
-            this.formData.interests = existingData.interests
+            this.formData.interests = this.normalizeInterestValues(existingData.interests)
+            this.syncExpandedCategoriesFromSelection()
           }
 
           // 自我性格
@@ -1066,8 +940,10 @@ export default {
       immediate: false
     }
   },
-  mounted() {
-    this.loadExistingQuestionnaire()
+  async mounted() {
+    await this.loadHobbyOptions()
+    await this.loadExistingQuestionnaire()
+    this.syncExpandedCategoriesFromSelection()
   }
 }
 </script>
@@ -1078,6 +954,11 @@ export default {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+}
+
+.interest-category-header:focus-visible {
+  outline: 2px solid rgba(124, 58, 237, 0.45);
+  outline-offset: -2px;
 }
 </style>
 
