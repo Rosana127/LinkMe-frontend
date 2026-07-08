@@ -1,11 +1,27 @@
 <template>
-  <div class="register-page-wrapper">
-    <div class="register-container">
+  <div class="auth-page">
+    <!-- 左侧品牌区 -->
+    <div class="auth-left">
       <button class="back-button" @click="goBack">
         <span class="iconify" data-icon="mdi:arrow-left" data-inline="false"></span>
         <span>返回</span>
       </button>
+      <div class="brand-content">
+        <div class="brand-icon">
+          <span class="iconify" data-icon="mdi:account-plus" data-inline="false"></span>
+        </div>
+        <h1 class="brand-title">加入 LinkMe</h1>
+        <p class="brand-desc">创建账号，开启你的交友之旅</p>
+        <div class="brand-tags">
+          <span>智能匹配</span>
+          <span>真实社交</span>
+          <span>安全交友</span>
+        </div>
+      </div>
+    </div>
 
+    <!-- 右侧表单区 -->
+    <div class="auth-right">
       <div class="register-card">
         <div class="register-header">
           <div class="brand-badge">LinkMe 账号</div>
@@ -377,65 +393,145 @@ const goBack = () => {
 </script>
 
 <style scoped>
-.register-page-wrapper {
+* {
+  box-sizing: border-box;
+}
+
+.auth-page {
+  display: flex;
   width: 100%;
   min-height: 100vh;
+}
+
+/* 左侧品牌区 */
+.auth-left {
+  flex: 1;
+  background: linear-gradient(135deg, #4338ca 0%, #7c3aed 50%, #db2777 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.32), transparent 28%),
-    linear-gradient(180deg, #ecb9c8 0%, #a4b8e7 100%);
   position: relative;
   overflow: hidden;
 }
 
-.register-container {
-  width: 100%;
-  max-width: 760px;
-  position: relative;
-  padding: 20px;
-  margin: 0 auto;
+.auth-left::before {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  top: -100px;
+  right: -100px;
 }
 
-.register-page-wrapper .back-button {
+.auth-left::after {
+  content: '';
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  bottom: -80px;
+  left: -60px;
+}
+
+.back-button {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: 24px;
+  left: 24px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 12px;
-  color: #1f2937;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  color: #fff;
   font-size: 14px;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   z-index: 10;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
 }
 
 .back-button:hover {
-  background: #ffffff;
-  transform: translateX(-2px);
+  background: rgba(255,255,255,0.25);
 }
 
-.back-button .iconify {
-  font-size: 18px;
+.brand-content {
+  text-align: center;
+  color: #fff;
+  position: relative;
+  z-index: 1;
+  padding: 40px;
+}
+
+.brand-icon {
+  width: 80px;
+  height: 80px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  backdrop-filter: blur(10px);
+}
+
+.brand-icon .iconify {
+  font-size: 40px;
+  color: #fff;
+}
+
+.brand-title {
+  font-size: 42px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  letter-spacing: -1px;
+}
+
+.brand-desc {
+  font-size: 16px;
+  opacity: 0.85;
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+.brand-tags {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.brand-tags span {
+  padding: 6px 16px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 20px;
+  font-size: 13px;
+  backdrop-filter: blur(10px);
+}
+
+/* 右侧表单区 */
+.auth-right {
+  flex: 1;
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #fae8ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
 }
 
 .register-card {
-  background: rgba(255, 255, 255, 0.98);
-  border-radius: 24px;
-  padding: 40px;
   width: 100%;
-  box-shadow: 0 24px 80px rgba(30, 41, 59, 0.2);
-  max-height: 88vh;
+  max-width: 520px;
+  max-height: 90vh;
   overflow-y: auto;
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: #fff;
+  border-radius: 18px;
+  padding: 40px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
 }
 
 .register-header {
@@ -651,7 +747,15 @@ const goBack = () => {
   text-decoration: underline;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .auth-left {
+    display: none;
+  }
+
+  .auth-right {
+    padding: 24px;
+  }
+
   .register-card {
     padding: 24px 18px;
   }

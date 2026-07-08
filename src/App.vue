@@ -153,6 +153,7 @@ watch(() => route.name, () => {
 }
 
 .app-container:has(.admin-standalone-root),
+.app-container:has(.auth-page),
 .app-container.is-admin-layout {
   padding-left: 0;
   display: block;
