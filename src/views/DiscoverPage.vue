@@ -137,7 +137,7 @@
           </button>
           <button 
             :class="['action-btn', { favorited: post.favorited }]" 
-            @click.prevent.stop="openFolderModal(post)"
+            @click.prevent.stop="toggleFavorite(post)"
           >
             <span 
               class="iconify" 
@@ -164,14 +164,14 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getPosts, getRecommendedPosts, getPost, likePost, unlikePost } from '@/api/posts'
-import { getFavoriteFolders, createFavoriteFolder, addPostToFavorites } from '@/api/favorites'
+import { getFavoriteFolders, createFavoriteFolder, addPostToFavorites, removePostFromFavorites, getUserFavoritePosts } from '@/api/favorites'
 import { followUser, unfollowUser } from '@/api/user'
 import { fetchTagDefinitions } from '@/api/tags'
 import { getAvatarUrl, handleAvatarError } from '@/utils/avatar'
 
 const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
-const currentUserId = computed(() => authStore.user?.userId)
+const currentUserId = computed(() => authStore.userId)
 const router = useRouter()
 
 // 状态变量
@@ -225,7 +225,11 @@ function getLocalFavoriteStatus(postId) {
 
 function setLocalFavoriteStatus(postId, status) {
   const favorites = JSON.parse(localStorage.getItem('userFavorites') || '{}')
-  favorites[postId] = status
+  if (status) {
+    favorites[postId] = true
+  } else {
+    delete favorites[postId]
+  }
   localStorage.setItem('userFavorites', JSON.stringify(favorites))
 }
 
@@ -316,7 +320,10 @@ function mapBackendToView(raw) {
     liked: isAuthenticated.value ? getLocalLikeStatus(postId) : false,
     favorites: raw.favoriteCount ?? raw.favorites ?? raw.bookmarks ?? 0,
     commentCount: raw.commentCount ?? raw.commentsCount ?? raw.comment_count ?? (Array.isArray(raw.comments) ? raw.comments.length : (raw.commentNum ?? 0)),
-    favorited: isAuthenticated.value ? getLocalFavoriteStatus(postId) : false
+    favorited: isAuthenticated.value
+      ? (raw.isFavorited ?? getLocalFavoriteStatus(postId))
+      : false,
+    favoriteId: raw.favoriteId ?? raw.favorite_id ?? null
   }
 }
 
@@ -546,7 +553,14 @@ function updatePostInLists(newPostData) {
   for (const list of lists) {
     const index = list.value.findIndex(p => p.id === postId)
     if (index !== -1) {
-      list.value[index] = newPostData
+      const current = list.value[index]
+      list.value[index] = {
+        ...current,
+        ...newPostData,
+        liked: current.liked,
+        favorited: newPostData.favorited ?? current.favorited,
+        favoriteId: newPostData.favoriteId ?? current.favoriteId
+      }
     }
   }
 }
@@ -564,10 +578,72 @@ async function refreshPostData(postId) {
 }
 
 // 收藏夹功能
+async function toggleFavorite(post) {
+  if (!isAuthenticated.value) {
+    showToastMessage('请先登录')
+    setTimeout(() => router.push('/login'), 800)
+    return
+  }
+
+  if (!currentUserId.value) {
+    showToastMessage('请先登录')
+    setTimeout(() => router.push('/login'), 800)
+    return
+  }
+
+  if (post.favorited) {
+    await unfavoritePost(post)
+    return
+  }
+
+  await openFolderModal(post)
+}
+
+async function unfavoritePost(post) {
+  const wasFavorited = post.favorited
+  const wasFavoriteCount = post.favorites
+  const wasFavoriteId = post.favoriteId
+
+  try {
+    post.favorited = false
+    post.favorites = Math.max(0, (post.favorites || 0) - 1)
+
+    let favoriteId = post.favoriteId
+    if (!favoriteId) {
+      const favorites = await getUserFavoritePosts(currentUserId.value, null, 1, 100)
+      const favoriteList = Array.isArray(favorites) ? favorites : (favorites?.data || [])
+      const record = favoriteList.find(
+        item => (item.postId ?? item.post_id) === post.id
+      )
+      favoriteId = record?.favoriteId ?? record?.favorite_id ?? record?.id ?? null
+    }
+
+    if (favoriteId) {
+      await removePostFromFavorites(favoriteId)
+      post.favoriteId = null
+    }
+
+    setLocalFavoriteStatus(post.id, false)
+    showToastMessage('已取消收藏')
+    refreshPostData(post.id).catch(err => console.error('刷新帖子数据失败（忽略）', err))
+  } catch (error) {
+    console.error('取消收藏失败', error)
+    post.favorited = wasFavorited
+    post.favorites = wasFavoriteCount
+    post.favoriteId = wasFavoriteId
+    showToastMessage('取消收藏失败，请重试')
+  }
+}
+
 async function openFolderModal(post) {
   if (!isAuthenticated.value) {
     showToastMessage('请先登录')
     setTimeout(() => router.push('/login'), 800)
+    return
+  }
+
+  if (post.favorited) {
+    showToastMessage('已经收藏过了')
     return
   }
 
@@ -583,17 +659,24 @@ function closeFolderModal() {
 
 async function saveToFolder(folderId) {
   if (!currentFavoritePost.value) return
-  
-  const postId = currentFavoritePost.value.id
+
+  const post = currentFavoritePost.value
+  const postId = post.id
+
+  if (post.favorited) {
+    showToastMessage('已经收藏过了')
+    closeFolderModal()
+    return
+  }
 
   try {
     await addPostToFavorites(currentUserId.value, postId, folderId)
-    currentFavoritePost.value.favorites = (currentFavoritePost.value.favorites || 0) + 1
-    currentFavoritePost.value.favorited = true
+    post.favorited = true
+    post.favorites = (post.favorites || 0) + 1
     setLocalFavoriteStatus(postId, true)
     showToastMessage('收藏成功')
     closeFolderModal()
-    await refreshPostData(postId)
+    refreshPostData(postId).catch(err => console.error('刷新帖子数据失败（忽略）', err))
   } catch (error) {
     console.error('收藏失败', error)
     showToastMessage('收藏失败，请重试')
