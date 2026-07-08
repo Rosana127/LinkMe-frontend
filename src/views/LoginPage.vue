@@ -93,15 +93,13 @@ const handleLogin = async () => {
   loading.value = true
 
   try {
-    const response = await authStore.login({
-      loginName: form.value.loginName.trim(),
-      password: form.value.password
-    })
+    const response = await authStore.login(
+      form.value.loginName.trim(),
+      form.value.password
+    )
 
-    if (response && response.data) {
-      const data = response.data
-      const user = data.user || data
-      const role = user?.role || user?.user?.role || data?.user?.role
+    if (response && response.success) {
+      const role = authStore.user?.role
 
       if (role === 'admin' || role === 'moderator') {
         router.push({ name: 'Admin' })
@@ -109,10 +107,11 @@ const handleLogin = async () => {
         const redirect = route.query.redirect
         router.push(typeof redirect === 'string' && redirect ? redirect : '/')
       }
+    } else {
+      errorMessage.value = response?.message || '登录失败，请检查账号和密码'
     }
   } catch (error) {
-    const msg = error?.response?.data?.message || error?.data?.message || error.message || '登录失败'
-    errorMessage.value = msg
+    errorMessage.value = error?.message || '登录失败'
   } finally {
     loading.value = false
   }
