@@ -705,6 +705,7 @@ function coverFor(p) {
 .manage-toolbar { display:flex; justify-content:space-between; align-items:center; padding:8px 0; margin-bottom:8px; background:#ffffff; color: #6b7280; font-size: 13px; }
 .manage-grid-wrapper { max-height: 60vh; overflow:auto; padding-right:6px; }
 .manage-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.empty { display:flex; justify-content:center; align-items:center; height:200px; color:#9ca3af; font-size:16px; }
 .post-card { background:#f5f6f8; border-radius:10px; overflow:hidden; display:flex; flex-direction:column; border:1px solid #e2e4e8 }
 .card-actions button { background:#e8eaed; color:#374151; border:1px solid #d4d8de; padding:6px 8px; border-radius:6px; cursor:pointer }
 .card-image { width:100%; aspect-ratio: 16/10; overflow:hidden; }
