@@ -485,12 +485,20 @@ async function toggleLike(post) {
     return
   }
 
+  if (!currentUserId.value) {
+    showToastMessage('请先登录')
+    setTimeout(() => router.push('/login'), 800)
+    return
+  }
+
   if (post.likeCount === undefined) post.likeCount = 0
   if (post.liked === undefined) post.liked = false
 
   const wasLiked = post.liked
   const wasLikeCount = post.likeCount
 
+  // 只把 like/unlike 接口失败当作“操作失败”
+  // refreshPostData() 如果失败不影响点赞切换成功（否则会出现“已变灰但仍提示失败”）
   try {
     if (post.liked) {
       post.liked = false
@@ -505,18 +513,30 @@ async function toggleLike(post) {
       setLocalLikeStatus(post.id, true)
       showToastMessage('点赞成功')
     }
-    
-    await refreshPostData(post.id)
-    // 点赞行为会影响协同过滤结果，刷新推荐列表
-    if (activeCategory.value === 'recommended') {
-      loadRecommendedPosts().catch(err => console.error('刷新推荐列表失败', err))
-    }
   } catch (error) {
     console.error('点赞操作失败', error)
+    // 如果是“取消点赞”但后端提示取消失败，通常说明后端并没有这条点赞记录
+    // 这类情况下本地 liked 状态可能不同步：强制展示为“未点赞”，保证用户体验
+    const msg = (error?.message || '').toString()
+    if (wasLiked === true && msg.includes('取消失败')) {
+      post.liked = false
+      post.likeCount = Math.max(0, post.likeCount || 0)
+      setLocalLikeStatus(post.id, false)
+      showToastMessage('已取消点赞')
+      return
+    }
+
+    // 其它失败：回滚 UI，保证状态一致
     post.liked = wasLiked
     post.likeCount = wasLikeCount
-    showToastMessage('操作失败，请重试')
+    showToastMessage('操作失败，请稍后再试')
+    return
   }
+
+  // 尝试刷新帖子数据，但失败不打断交互
+  refreshPostData(post.id).catch(err => {
+    console.error('刷新帖子数据失败（忽略）', err)
+  })
 }
 
 // 刷新帖子数据
