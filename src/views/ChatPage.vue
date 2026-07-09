@@ -284,6 +284,17 @@
               <span>{{ isCurrentChatAiEnabled ? 'AI开启' : 'AI关闭' }}</span>
             </button>
             <button
+              v-if="aiEnabled"
+              @click="requestAIAnalysis"
+              class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors mr-2 flex items-center gap-1"
+              :class="canRequestAIAnalysis ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-800 text-gray-500 cursor-not-allowed'"
+              :disabled="!canRequestAIAnalysis"
+              title="手动分析当前会话"
+            >
+              <span class="iconify" data-icon="mdi:refresh" data-inline="false"></span>
+              <span>{{ isAnalyzing ? '分析中' : '分析一次' }}</span>
+            </button>
+            <button
               class="p-2 rounded-full hover:bg-gray-800 transition-colors"
             >
               <span
@@ -985,6 +996,16 @@ const isCurrentChatAiEnabled = computed(() => {
   return chatAiSettings.value[selectedChatId.value] === true;
 });
 
+const canRequestAIAnalysis = computed(() => {
+  return !!(
+    isCurrentChatAiEnabled.value &&
+    selectedChat.value &&
+    selectedChat.value.messages &&
+    selectedChat.value.messages.length > 0 &&
+    !isAnalyzing.value
+  );
+});
+
 // 切换当前会话 AI 状态
 const toggleCurrentChatAi = () => {
   if (!selectedChatId.value) return;
@@ -994,19 +1015,54 @@ const toggleCurrentChatAi = () => {
   
   // 如果打开了，尝试获取一次建议
   if (!currentStatus) {
-     getAIAnalysis();
+     aiSuggestion.value = "点击“分析一次”获取建议";
+     aiTip.value = "AI助手已开启，等待手动分析。";
   } else {
+     clearAIAnalysisTimers();
+     isAnalyzing.value = false;
      // 关闭时清空建议
      aiSuggestion.value = "AI助手已关闭";
      aiTip.value = "AI助手已关闭";
   }
 };
 
+const requestAIAnalysis = () => {
+  if (!canRequestAIAnalysis.value) {
+    return;
+  }
+  getAIAnalysis(false, true);
+};
+
 const aiSuggestion = ref("正在分析...");
 const aiTip = ref("正在分析对话...");
 const isAnalyzing = ref(false);
-const aiRetryCount = ref(0);
-const aiRetryTimer = ref(null);
+const activeAnalysisKey = ref("");
+const lastCompletedAnalysisKey = ref("");
+
+const clearAIAnalysisTimers = () => {
+  if (aiDebounceTimer) {
+    clearTimeout(aiDebounceTimer);
+    aiDebounceTimer = null;
+  }
+};
+
+const buildAIAnalysisPayload = () => {
+  if (!selectedChat.value || !selectedChat.value.messages || selectedChat.value.messages.length === 0) {
+    return null;
+  }
+
+  const messages = selectedChat.value.messages.map((m) =>
+    `${m.isFromUser ? '我' : (selectedChat.value.name || '对方')}: ${m.content}`
+  );
+
+  return {
+    chatId: selectedChat.value.id,
+    messages,
+    otherUserName: selectedChat.value.name,
+    myName: authStore.user?.nickname || '我',
+    analysisKey: `${selectedChat.value.id}::${messages.join("\n")}`
+  };
+};
 
 const loadAIStatus = async () => {
   try {
@@ -1014,105 +1070,94 @@ const loadAIStatus = async () => {
     const data = res?.data || res;
     aiEnabled.value = !!data?.enabled;
     if (!aiEnabled.value) {
+      clearAIAnalysisTimers();
+      isAnalyzing.value = false;
       aiSuggestion.value = "AI已关闭";
       aiTip.value = "AI助手已关闭";
     }
   } catch (e) {
     aiEnabled.value = false;
+    clearAIAnalysisTimers();
+    isAnalyzing.value = false;
     aiSuggestion.value = "AI助手暂不可用";
     aiTip.value = "当前未连接到 AI 服务，已保持关闭。";
   }
 };
 
-const getAIAnalysis = async (isRetry = false) => {
-  // Clear any existing retry timer if this is a fresh call
-  if (!isRetry && aiRetryTimer.value) {
-      clearTimeout(aiRetryTimer.value);
-      aiRetryTimer.value = null;
-  }
-
+const getAIAnalysis = async (isRetry = false, force = false) => {
   if (!isRetry) {
-      aiRetryCount.value = 0;
+    clearAIAnalysisTimers();
   }
 
   if (!isCurrentChatAiEnabled.value) {
+    clearAIAnalysisTimers();
     isAnalyzing.value = false;
     aiSuggestion.value = "AI已关闭";
     aiTip.value = "AI助手已关闭";
     return;
   }
 
-  if (!selectedChat.value || !selectedChat.value.messages || selectedChat.value.messages.length === 0) {
+  const payload = buildAIAnalysisPayload();
+  if (!payload) {
     aiSuggestion.value = "暂无建议";
     aiTip.value = "开始一段新的对话吧！";
     return;
   }
 
-  const currentChatId = selectedChat.value.id;
+  if (!force && !isRetry) {
+    if (activeAnalysisKey.value === payload.analysisKey) {
+      return;
+    }
+    if (lastCompletedAnalysisKey.value === payload.analysisKey) {
+      return;
+    }
+  }
 
+  const currentChatId = payload.chatId;
+  activeAnalysisKey.value = payload.analysisKey;
   isAnalyzing.value = true;
+
   if (!isRetry) {
-      aiSuggestion.value = "正在思考...";
-      aiTip.value = "正在分析...";
+    aiSuggestion.value = "正在思考...";
+    aiTip.value = "正在分析...";
   }
   
   try {
-    // Format messages for backend
-    const messages = selectedChat.value.messages.map(m => 
-      `${m.isFromUser ? '我' : (selectedChat.value.name || '对方')}: ${m.content}`
-    );
-
     const res = await aiApi.analyzeChat({
-      messages,
-      otherUserName: selectedChat.value.name,
-      myName: authStore.user?.nickname || '我'
+      messages: payload.messages,
+      otherUserName: payload.otherUserName,
+      myName: payload.myName
     });
 
-    // If chat changed while we were waiting, discard result
     if (selectedChat.value?.id !== currentChatId) return;
 
     if (res) {
-        // 兼容直接返回对象或嵌套在data中的情况
-        const data = res.data || res;
-        
-        // Check for backend fallback message
-        if (data.tip && data.tip.includes("AI服务暂时不可用")) {
-            throw new Error("AI Service Unavailable");
-        }
+      const data = res.data || res;
+      if (data.tip && data.tip.includes("AI服务暂时不可用")) {
+        throw new Error("AI Service Unavailable");
+      }
 
-        if (data.suggestion) aiSuggestion.value = data.suggestion;
-        if (data.tip) aiTip.value = data.tip;
-        aiRetryCount.value = 0; // Success
+      if (data.suggestion) aiSuggestion.value = data.suggestion;
+      if (data.tip) aiTip.value = data.tip;
+      lastCompletedAnalysisKey.value = payload.analysisKey;
     }
   } catch (e) {
-    // If chat changed, don't retry for the old chat
     if (selectedChat.value?.id !== currentChatId) return;
 
     console.error("AI分析失败", e);
-    
-    if (aiRetryCount.value < 3) {
-        aiRetryCount.value++;
-        aiSuggestion.value = `请求失败，3秒后自动重试 (${aiRetryCount.value}/3)...`;
-        aiTip.value = "正在尝试重新连接AI服务...";
-        
-        aiRetryTimer.value = setTimeout(() => {
-            getAIAnalysis(true);
-        }, 3000);
-        return; 
-    }
-
     aiSuggestion.value = "无法获取建议";
-    aiTip.value = "AI服务暂时不可用，请保持真诚的交流。";
+    aiTip.value = "本次分析失败，请手动重试。";
   } finally {
+    if (activeAnalysisKey.value === payload.analysisKey) {
+      activeAnalysisKey.value = "";
+    }
     if (selectedChat.value?.id === currentChatId) {
-        if (aiRetryCount.value >= 3 || (aiSuggestion.value !== "无法获取建议" && !aiSuggestion.value.includes("重试"))) {
-            isAnalyzing.value = false;
-        }
+      isAnalyzing.value = false;
     }
   }
 };
 
-// 监听消息变化，自动触发AI分析（防抖）
+// AI 分析相关定时器
 let aiDebounceTimer = null;
 
 // 本地存储匹配来源标记的 key
@@ -1157,15 +1202,6 @@ function loadLikeFlags() {
     return {};
   }
 }
-watch(() => selectedChat.value?.messages, (newVal) => {
-    if (newVal && newVal.length > 0) {
-        if (aiDebounceTimer) clearTimeout(aiDebounceTimer);
-        aiDebounceTimer = setTimeout(() => {
-            getAIAnalysis();
-        }, 2000); // 2秒防抖，避免频繁调用
-    }
-}, { deep: true });
-
 // 将后端会话结构映射为前端展示结构
 function mapConversationToChat(conv) {
   // Support backend ConversationResponse shape (conversationId, otherUserId, otherUserNickname, otherUserAvatar)
@@ -1926,8 +1962,6 @@ watch(selectedChatId, (newId, oldId) => {
   
   if (newId) {
     newMessage.value = messageDrafts.value[newId] || "";
-    // 切换会话时触发AI分析
-    getAIAnalysis();
   } else {
     newMessage.value = "";
   }
@@ -2294,6 +2328,7 @@ onMounted(async () => {
 
 // 组件卸载时移除事件监听
 onUnmounted(() => {
+  clearAIAnalysisTimers();
   document.removeEventListener("click", closeOptionsMenu);
   window.removeEventListener("resize", handleResize);
   // 移除消息处理器（可能保持连接供其他组件使用）
