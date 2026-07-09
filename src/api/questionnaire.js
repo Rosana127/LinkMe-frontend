@@ -13,8 +13,14 @@ export function submitQuestionnaire(questionnaireData) {
   });
 }
 
+export function getHobbyOptions() {
+  return request({
+    url: "/questionnaire/hobby-options",
+    method: "get",
+  });
+}
+
 /**
- * 获取用户的问卷数据
  * @param {Number} userId 用户ID（可选，如果不提供则获取当前登录用户的问卷）
  * @returns {Promise}
  */
@@ -64,6 +70,7 @@ export function deleteQuestionnaire() {
 
 const questionnaireApi = {
   submitQuestionnaire,
+  getHobbyOptions,
   getQuestionnaire,
   getPublicQuestionnaire,
   updateQuestionnaire,

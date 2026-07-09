@@ -92,13 +92,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch, ref, provide } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, watch, ref, provide, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import Sidebar from './components/Sidebar.vue'
 import { initTheme, applyTheme } from '@/utils/theme'
+import chatApi from '@/api/chat'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 
 const isAuthPage = computed(() => route.name === 'login' || route.name === 'register')
@@ -112,33 +114,242 @@ const isAdminLayout = computed(() => {
 // 控制右侧栏显示，只有home页面显示，且需要登录
 const showRightSidebar = computed(() => {
   if (!authStore.isAuthenticated) {
-    return false // 未登录时不显示右侧栏
+    return false
   }
-  return route.name === 'home' // 只显示home页面的右侧栏
+  return route.name === 'home'
 })
 
 // 消息未读红点提示 / Message unread badge
 const hasUnreadMessages = ref(false)
 provide('hasUnreadMessages', hasUnreadMessages)
 
-// 红点状态由 ChatPage.vue 中的 watcher 实时管理，不再通过路由切换清除 / Badge state is managed in real-time by ChatPage.vue watcher, no longer cleared on route change
+// ========== 全局 WebSocket 状态管理 ==========
+// Global WebSocket state management
+const wsState = {
+  instance: null,
+  isConnected: false,
+  messageHandlers: new Set(),
+  reconnectTimer: null,
+  connectionId: 0,
+  isIntentionalClose: false
+}
 
-// 路由监听和组件加载相关代码已简化
+// 检查是否有未读消息（聊天或通知）
+async function checkUnreadStatus() {
+  if (!authStore.isAuthenticated) {
+    hasUnreadMessages.value = false
+    return
+  }
+  try {
+    // 获取聊天未读数量
+    const convRes = await chatApi.getConversations()
+    const conversations = Array.isArray(convRes) ? convRes : convRes?.data || []
+    const hasUnreadChats = conversations.some(c => (c.unreadCount || 0) > 0)
+    
+    // 获取通知未读数量
+    const notifRes = await chatApi.getNotifications()
+    const notifications = Array.isArray(notifRes) ? notifRes : notifRes?.data || []
+    const hasUnreadNotifs = notifications.some(n => !(n.isRead || n.read))
+    
+    hasUnreadMessages.value = hasUnreadChats || hasUnreadNotifs
+  } catch (error) {
+    console.error('检查未读状态失败:', error)
+  }
+}
 
-// 初始化主题
-onMounted(() => {
-  initTheme()
+// 初始化全局 WebSocket 连接
+function initGlobalWebSocket() {
+  // 清除之前的重连定时器
+  if (wsState.reconnectTimer) {
+    clearTimeout(wsState.reconnectTimer)
+    wsState.reconnectTimer = null
+  }
+  
+  // 如果已经有连接且是打开状态，直接返回
+  if (wsState.instance && wsState.instance.readyState === WebSocket.OPEN) {
+    console.log('✅ 全局 WebSocket 已连接，复用现有连接')
+    wsState.isConnected = true
+    return
+  }
+  
+  // 如果连接正在建立中，等待
+  if (wsState.instance && wsState.instance.readyState === WebSocket.CONNECTING) {
+    console.log('⏳ 全局 WebSocket 正在连接中')
+    return
+  }
+  
+  // 如果有旧连接但状态不是打开，先关闭
+  if (wsState.instance) {
+    wsState.isIntentionalClose = true
+    try {
+      wsState.instance.close()
+    } catch (e) {
+      console.log('关闭旧 WebSocket 连接:', e)
+    }
+    wsState.instance = null
+  }
+
+  const token = authStore.token
+  if (!token) {
+    console.error('未找到 token，无法建立 WebSocket 连接')
+    return
+  }
+
+  const connectionId = ++wsState.connectionId
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const wsHost = window.location.host
+  const wsUrl = `${wsProtocol}//${wsHost}/ws/chat?token=${encodeURIComponent(token)}`
+  console.log(`[全局连接#${connectionId}] 正在建立 WebSocket 连接...`)
+
+  try {
+    wsState.isIntentionalClose = false
+    wsState.instance = new WebSocket(wsUrl)
+
+    wsState.instance.onopen = () => {
+      if (connectionId !== wsState.connectionId) return
+      console.log(`[全局连接#${connectionId}] ✅ WebSocket 连接成功`)
+      wsState.isConnected = true
+      wsState.reconnectAttempts = 0
+    }
+
+    wsState.instance.onmessage = (event) => {
+      if (connectionId !== wsState.connectionId) return
+      console.log('全局 WebSocket 收到消息:', event.data)
+      try {
+        const message = JSON.parse(event.data)
+        // 通知所有注册的处理器
+        wsState.messageHandlers.forEach(handler => {
+          try {
+            handler(message)
+          } catch (e) {
+            console.error('消息处理器错误:', e)
+          }
+        })
+        
+        // 全局处理：更新红点状态
+        handleGlobalMessage(message)
+      } catch (error) {
+        console.error('解析 WebSocket 消息失败:', error)
+      }
+    }
+
+    wsState.instance.onerror = (error) => {
+      if (connectionId !== wsState.connectionId) return
+      console.error(`[全局连接#${connectionId}] WebSocket 错误:`, error)
+      wsState.isConnected = false
+    }
+
+    wsState.instance.onclose = (event) => {
+      if (connectionId !== wsState.connectionId) {
+        console.log(`[全局连接#${connectionId}] 旧连接关闭，忽略`)
+        return
+      }
+      
+      console.log(`[全局连接#${connectionId}] WebSocket 连接关闭, code:`, event.code, 'reason:', event.reason)
+      wsState.isConnected = false
+      wsState.instance = null
+      
+      if (wsState.isIntentionalClose) {
+        console.log('主动关闭，不进行重连')
+        return
+      }
+      
+      // 重连逻辑
+      if (!wsState.reconnectAttempts) wsState.reconnectAttempts = 0
+      if (wsState.reconnectAttempts >= 5) {
+        console.log('已达到最大重连次数，停止重连')
+        return
+      }
+      
+      const baseDelay = event.code === 1000 ? 3000 : 5000
+      const delay = Math.min(baseDelay * Math.pow(1.5, wsState.reconnectAttempts), 30000)
+      wsState.reconnectAttempts++
+      
+      console.log(`${delay/1000}秒后尝试第${wsState.reconnectAttempts}次重连...`)
+      wsState.reconnectTimer = setTimeout(() => {
+        if (authStore.token) {
+          initGlobalWebSocket()
+        }
+      }, delay)
+    }
+  } catch (error) {
+    console.error('创建 WebSocket 连接失败:', error)
+  }
+}
+
+// 全局消息处理：更新红点状态
+async function handleGlobalMessage(message) {
+  // 聊天消息或通知消息都需要更新红点
+  const isChatMessage = 
+    (message.type === 'chat' || message.type === 'message') ||
+    (message.conversationId && message.content !== undefined)
+  
+  const isNotification = message.type === 'notification'
+  
+  if (isChatMessage || isNotification) {
+    // 如果当前不在消息页面，直接更新红点
+    if (route.name !== 'chat') {
+      await checkUnreadStatus()
+    }
+  }
+}
+
+// 注册全局消息处理器
+function registerGlobalMessageHandler(handler) {
+  wsState.messageHandlers.add(handler)
+  console.log('已注册全局消息处理器，当前处理器数量:', wsState.messageHandlers.size)
+}
+
+// 移除全局消息处理器
+function unregisterGlobalMessageHandler(handler) {
+  wsState.messageHandlers.delete(handler)
+  console.log('已移除全局消息处理器，当前处理器数量:', wsState.messageHandlers.size)
+}
+
+// 提供全局 WebSocket 相关方法
+provide('registerGlobalMessageHandler', registerGlobalMessageHandler)
+provide('unregisterGlobalMessageHandler', unregisterGlobalMessageHandler)
+provide('checkUnreadStatus', checkUnreadStatus)
+
+// 监听登录状态变化，建立/断开 WebSocket 连接
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (isAuthenticated) {
+    initGlobalWebSocket()
+    checkUnreadStatus()
+  } else {
+    // 登出时关闭 WebSocket 连接
+    if (wsState.instance) {
+      wsState.isIntentionalClose = true
+      wsState.instance.close()
+      wsState.instance = null
+      wsState.isConnected = false
+    }
+    hasUnreadMessages.value = false
+  }
 })
 
-// 监听路由变化，重新应用主题到新页面
-watch(() => route.name, () => {
+// 路由变化时检查未读状态（确保红点在进入消息页面后能正确更新）
+watch(() => route.name, async (newName) => {
+  // 重新应用主题
   setTimeout(() => {
     applyTheme()
   }, 200)
+  
+  // 如果进入消息页面，刷新未读状态（可能已读）
+  if (newName === 'chat') {
+    await nextTick()
+    await checkUnreadStatus()
+  }
 })
 
-// 用户统计数据相关代码已移除
-
+// 初始化主题和未读状态
+onMounted(() => {
+  initTheme()
+  if (authStore.isAuthenticated) {
+    initGlobalWebSocket()
+    checkUnreadStatus()
+  }
+})
 
 </script>
 
@@ -153,6 +364,7 @@ watch(() => route.name, () => {
 }
 
 .app-container:has(.admin-standalone-root),
+.app-container:has(.auth-page),
 .app-container.is-admin-layout {
   padding-left: 0;
   display: block;

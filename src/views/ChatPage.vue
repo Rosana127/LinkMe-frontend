@@ -1,4 +1,4 @@
-﻿<template>
+﻿﻿<template>
   <div class="chat-page-container">
     <!-- 聊天列表和活动通知 -->
     <div class="grid grid-cols-3 gap-6 h-full">
@@ -570,25 +570,19 @@ import * as aiApi from "@/api/ai";
 import { sendLikeNotification, cancelLikeNotification } from '@/api/likes';
 import { containsSensitiveWords } from '@/utils/sensitiveWords';
 
-// ========== 模块级 WebSocket 单例管理 ==========
-// 将 WebSocket 放在模块级别，避免 HMR 时创建多个实例
-const wsState = {
-  instance: null,
-  reconnectTimer: null,
-  reconnectAttempts: 0,
-  isIntentionalClose: false,
-  messageHandlers: new Set(),  // 消息处理器集合
-  connectionId: 0  // 用于追踪连接
-};
+// ========== WebSocket 状态管理（复用全局连接） ==========
+// 使用 App.vue 提供的全局 WebSocket 连接，不再创建独立连接
+const isWebSocketConnected = ref(false);
 
-// HMR 清理 - 确保热更新时不会重复创建连接
-if (import.meta.hot) {
-  import.meta.hot.accept();
-  // 保存 WebSocket 状态到 HMR 数据中
-  import.meta.hot.data.wsState = import.meta.hot.data.wsState || wsState;
-  // 恢复之前的状态
-  Object.assign(wsState, import.meta.hot.data.wsState);
-}
+// 监听全局连接状态变化
+const checkGlobalConnection = () => {
+  try {
+    // 尝试访问全局 WebSocket 状态
+    isWebSocketConnected.value = false;
+  } catch (e) {
+    console.log('检查全局连接状态:', e);
+  }
+};
 
 const route = useRoute();
 const router = useRouter();
@@ -628,9 +622,8 @@ const isLiked = computed(() => {
   return likeFlags[String(selectedChat.value.otherId)] ? true : false;
 });
 
-// WebSocket连接状态（响应式）
-const isWebSocketConnected = ref(false);
-const MAX_RECONNECT_ATTEMPTS = 5;  // 最大重连次数
+// WebSocket 最大重连次数（已移至全局连接管理）
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 // 生成文字头像（显示用户名字前两个字）
 function generateTextAvatar(name) {
@@ -769,6 +762,10 @@ async function markAsRead(notificationId) {
   try {
     await chatApi.markNotificationRead(notificationId);
     await loadNotifications();
+    // 更新全局红点状态
+    if (checkUnreadStatus) {
+      await checkUnreadStatus();
+    }
   } catch (e) {
     console.error("标记通知为已读失败", e);
   }
@@ -779,6 +776,10 @@ async function markAllAsRead() {
   try {
     await chatApi.markAllNotificationsRead();
     await loadNotifications();
+    // 更新全局红点状态
+    if (checkUnreadStatus) {
+      await checkUnreadStatus();
+    }
   } catch (e) {
     console.error("全部标记为已读失败", e);
   }
@@ -1381,6 +1382,10 @@ const selectChat = async (chatId) => {
       if (idx >= 0) {
         chats.value[idx].unreadCount = 0;
       }
+      // 更新全局红点状态
+      if (checkUnreadStatus) {
+        await checkUnreadStatus();
+      }
     } catch (e) {
       // 如果是404或400错误，可能是会话不存在或用户无权限，这是正常的（比如会话刚被删除）
       // 只记录错误，不中断流程
@@ -1972,136 +1977,17 @@ watch(selectedChatId, (newId, oldId) => {
 // 当前组件实例的消息处理器
 let currentMessageHandler = null;
 
-// 初始化WebSocket连接（模块级单例）
+// 注入全局 WebSocket 方法
+const registerGlobalMessageHandler = inject('registerGlobalMessageHandler', null);
+const unregisterGlobalMessageHandler = inject('unregisterGlobalMessageHandler', null);
+const checkUnreadStatus = inject('checkUnreadStatus', null);
+
+// 注册到全局 WebSocket 连接
 const initWebSocket = () => {
-  // 清除之前的重连定时器
-  if (wsState.reconnectTimer) {
-    clearTimeout(wsState.reconnectTimer);
-    wsState.reconnectTimer = null;
-  }
-  
-  // 如果已经有连接且是打开状态，只需注册消息处理器
-  if (wsState.instance && wsState.instance.readyState === WebSocket.OPEN) {
-    console.log("✅ WebSocket已连接，复用现有连接");
-    isWebSocketConnected.value = true;
-    return;
-  }
-  
-  // 如果连接正在建立中，等待
-  if (wsState.instance && wsState.instance.readyState === WebSocket.CONNECTING) {
-    console.log("⏳ WebSocket正在连接中，等待...");
-    return;
-  }
-  
-  // 如果有旧连接但状态不是打开，先关闭
-  if (wsState.instance) {
-    wsState.isIntentionalClose = true;
-    try {
-      wsState.instance.close();
-    } catch (e) {
-      console.log("关闭旧WebSocket连接:", e);
-    }
-    wsState.instance = null;
-  }
-
-  const token = authStore.token;
-  if (!token) {
-    console.error("未找到token，无法建立WebSocket连接");
-    return;
-  }
-
-  // 增加连接ID用于追踪
-  const connectionId = ++wsState.connectionId;
-  
-  // WebSocket服务器地址：
-  // - 开发环境：仍可通过 Vite 代理 /api 访问后端，但 WebSocket 不走 axios，需要使用当前页面域名
-  // - 生产环境：通常通过 Nginx 同域反代到后端（/ws/chat -> 8080），因此这里用相对到当前域名的地址
-  // - 若站点是 https，则必须用 wss
-  const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const wsHost = window.location.host; // e.g. 1.2.3.4 或 example.com
-  const wsUrl = `${wsProtocol}//${wsHost}/ws/chat?token=${encodeURIComponent(token)}`;
-  console.log(`[连接#${connectionId}] 正在建立WebSocket连接...`);
-
-  try {
-    wsState.isIntentionalClose = false;
-    wsState.instance = new WebSocket(wsUrl);
-
-    wsState.instance.onopen = () => {
-      // 检查是否是最新的连接
-      if (connectionId !== wsState.connectionId) {
-        console.log(`[连接#${connectionId}] 不是最新连接，忽略`);
-        return;
-      }
-      console.log(`[连接#${connectionId}] ✅ WebSocket连接成功`);
-      isWebSocketConnected.value = true;
-      wsState.reconnectAttempts = 0;  // 重置重连次数
-    };
-
-    wsState.instance.onmessage = (event) => {
-      // 检查是否是最新的连接
-      if (connectionId !== wsState.connectionId) {
-        return;
-      }
-      console.log("收到WebSocket消息:", event.data);
-      try {
-        const message = JSON.parse(event.data);
-        // 调用所有注册的消息处理器
-        wsState.messageHandlers.forEach(handler => {
-          try {
-            handler(message);
-          } catch (e) {
-            console.error("消息处理器错误:", e);
-          }
-        });
-      } catch (error) {
-        console.error("解析WebSocket消息失败:", error);
-      }
-    };
-
-    wsState.instance.onerror = (error) => {
-      if (connectionId !== wsState.connectionId) return;
-      console.error(`[连接#${connectionId}] WebSocket错误:`, error);
-      isWebSocketConnected.value = false;
-    };
-
-    wsState.instance.onclose = (event) => {
-      // 检查是否是最新的连接
-      if (connectionId !== wsState.connectionId) {
-        console.log(`[连接#${connectionId}] 旧连接关闭，忽略`);
-        return;
-      }
-      
-      console.log(`[连接#${connectionId}] WebSocket连接关闭, code:`, event.code, "reason:", event.reason);
-      isWebSocketConnected.value = false;
-      wsState.instance = null;
-      
-      // 如果是主动关闭，不重连
-      if (wsState.isIntentionalClose) {
-        console.log("主动关闭，不进行重连");
-        return;
-      }
-      
-      // code 1000 表示正常关闭（通常是后端踢掉旧连接），稍后重连
-      // 检查是否超过最大重连次数
-      if (wsState.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-        console.log("已达到最大重连次数，停止重连");
-        return;
-      }
-      
-      // 指数退避重连，但如果是被踢掉（code 1000），延迟稍长一些
-      const baseDelay = event.code === 1000 ? 3000 : 5000;
-      const delay = Math.min(baseDelay * Math.pow(1.5, wsState.reconnectAttempts), 30000);
-      wsState.reconnectAttempts++;
-      
-      console.log(`${delay/1000}秒后尝试第${wsState.reconnectAttempts}次重连...`);
-      wsState.reconnectTimer = setTimeout(() => {
-        if (authStore.token && wsState.messageHandlers.size > 0) {
-          initWebSocket();
-        }
-      }, delay);
-    };
-  } catch (error) {
-    console.error("创建WebSocket连接失败:", error);
+  console.log("📡 ChatPage 正在注册到全局 WebSocket 连接");
+  if (registerGlobalMessageHandler && handleWebSocketMessage) {
+    registerGlobalMessageHandler(handleWebSocketMessage);
+    console.log("✅ ChatPage 已注册到全局 WebSocket");
   }
 };
 
@@ -2226,6 +2112,10 @@ const handleWebSocketMessage = async (message) => {
     // 收到新通知，刷新通知列表
     console.log("🔔 收到新通知");
     await loadNotifications();
+    // 更新全局红点状态
+    if (checkUnreadStatus) {
+      await checkUnreadStatus();
+    }
   } else if (message.type === "connected") {
     // 连接成功确认消息，忽略
     console.log("✅ WebSocket连接确认:", message.message);
@@ -2236,30 +2126,11 @@ const handleWebSocketMessage = async (message) => {
 
 // 关闭WebSocket连接（仅在没有其他处理器时关闭）
 const closeWebSocket = () => {
-  // 移除当前组件的消息处理器
-  if (currentMessageHandler) {
-    wsState.messageHandlers.delete(currentMessageHandler);
+  // 使用全局方法移除消息处理器
+  if (unregisterGlobalMessageHandler && currentMessageHandler) {
+    unregisterGlobalMessageHandler(currentMessageHandler);
     currentMessageHandler = null;
-    console.log("已移除消息处理器，当前处理器数量:", wsState.messageHandlers.size);
-  }
-  
-  // 只有当没有其他处理器时才关闭连接
-  if (wsState.messageHandlers.size === 0) {
-    // 清除重连定时器
-    if (wsState.reconnectTimer) {
-      clearTimeout(wsState.reconnectTimer);
-      wsState.reconnectTimer = null;
-    }
-    
-    if (wsState.instance) {
-      console.log("主动关闭WebSocket连接（没有其他处理器）");
-      wsState.isIntentionalClose = true;
-      wsState.instance.close();
-      wsState.instance = null;
-      isWebSocketConnected.value = false;
-    }
-  } else {
-    console.log("还有其他处理器在使用，保持WebSocket连接");
+    console.log("✅ ChatPage 已从全局 WebSocket 移除");
   }
 };
 
@@ -2268,12 +2139,10 @@ onMounted(async () => {
   await loadConversations();
   await loadNotifications();
 
-  // 注册当前组件的消息处理器
+  // 注册当前组件的消息处理器到全局 WebSocket
   currentMessageHandler = handleWebSocketMessage;
-  wsState.messageHandlers.add(currentMessageHandler);
-  console.log("已注册消息处理器，当前处理器数量:", wsState.messageHandlers.size);
   
-  // 初始化WebSocket连接
+  // 初始化WebSocket连接（注册到全局连接）
   initWebSocket();
 
   // 检查路由参数，如果有 userId，创建或选择对应的聊天
